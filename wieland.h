@@ -15,11 +15,16 @@ void		w_window_delete(struct w_window *w);
 void		w_window_move(struct w_window *w, int x, int y);
 void		w_window_move_by(struct w_window *w, int x, int y);
 void		w_window_resize(struct w_window *w, unsigned int width, unsigned int height);
+void		w_window_move_cursor(struct w_window *w, int x, int y);
 
 void		w_window_clear(struct w_window *w);
 void		w_window_putstr(struct w_window *w, int x, int y, const char *str);
 void		w_window_set_translucent_char(struct w_window *w, char c);
 
 void		w_window_bind(struct w_window *w, int key, void (*callback)(struct w_window *w, int key));
+
+struct w_window	*w_window_get_parent(struct w_window *w);
+int		w_window_get_x(struct w_window *w);
+int		w_window_get_y(struct w_window *w);
 
 #endif /* !WIELAND_H */

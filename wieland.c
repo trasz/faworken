@@ -24,6 +24,9 @@ struct w_window {
 	TAILQ_HEAD(, w_window)	w_windows;
 	TAILQ_HEAD(, w_binding)	w_bindings;
 	char			*w_data;
+	struct w_window		*w_window_with_cursor;
+	int			w_cursor_x;
+	int			w_cursor_y;
 };
 
 struct w_window	*
@@ -133,6 +136,20 @@ w_window_resize(struct w_window *w, unsigned int width, unsigned int height)
 	w_window_clear(w);
 }
 
+void
+w_window_move_cursor(struct w_window *w, int x, int y)
+{
+	struct w_window *root;
+
+	for (root = w; root->w_parent != NULL; root = root->w_parent)
+		continue;
+
+	root->w_window_with_cursor = w;
+
+	w->w_cursor_x = x;
+	w->w_cursor_y = y;
+}
+
 void	
 w_window_clear(struct w_window *w)
 {
@@ -230,22 +247,36 @@ w_window_bind(struct w_window *w, int key, void (*callback)(struct w_window *w, 
 }
 
 static void
-w_window_putscr(struct w_window *w, int x, int y, char c)
+w_window_draw(struct w_window *w, int x, int y, char c)
 {
 	int error;
-
-#if 0
-	fprintf(stderr, "'%c'@<%d, %d> ", c, x, y);
-#endif
 
 	if (w != NULL) {
 		if (x < 0 || x >= w->w_w)
 			return;
 		if (y < 0 || y >= w->w_h)
 			return;
-		w_window_putscr(w->w_parent, w->w_x + x, w->w_y + y, c);
+		w_window_draw(w->w_parent, w->w_x + x, w->w_y + y, c);
 	} else {
 		error = mvaddch(y, x, c);
+		if (error == ERR)
+			err(1, "mvaddch");
+	}
+}
+
+static void
+w_window_draw_cursor(struct w_window *w, int x, int y)
+{
+	int error;
+
+	if (w != NULL) {
+		if (x < 0 || x >= w->w_w)
+			return;
+		if (y < 0 || y >= w->w_h)
+			return;
+		w_window_draw_cursor(w->w_parent, w->w_x + x, w->w_y + y);
+	} else {
+		error = move(y, x);
 		if (error == ERR)
 			err(1, "mvaddch");
 	}
@@ -265,7 +296,7 @@ w_window_redraw(struct w_window *w)
 			if (c == 0)
 				continue;
 #endif
-			w_window_putscr(w->w_parent, w->w_x + x, w->w_y + y, c);
+			w_window_draw(w->w_parent, w->w_x + x, w->w_y + y, c);
 		}
 	}
 
@@ -280,6 +311,9 @@ w_redraw(struct w_window *w)
 
 	w_window_redraw(w);
 
+	if (w->w_window_with_cursor != NULL)
+		w_window_draw_cursor(w->w_window_with_cursor, w->w_window_with_cursor->w_cursor_x, w->w_window_with_cursor->w_cursor_y);
+
 	error = refresh();
 	if (error == ERR)
 		err(1, "refresh");
@@ -288,18 +322,17 @@ w_redraw(struct w_window *w)
 void
 w_wait_for_key(struct w_window *w)
 {
-	int key;
 	struct w_binding *wb;
+	int key;
 
-	for (;;) {
-		key = getch();
+	key = getch();
+	for (; w != NULL; w = w->w_parent) {
 		wb = w_window_binding_find(w, key);
-		if (wb == NULL)
-			continue;
-		wb->wb_callback(w, key);
-		break;
+		if (wb != NULL) {
+			wb->wb_callback(w, key);
+			return;
+		}
 	}
-
 }
 
 int
@@ -309,3 +342,23 @@ w_get_input_fd(struct w_window *w)
 	return (42);
 }
 
+struct w_window *
+w_window_get_parent(struct w_window *w)
+{
+
+	return (w->w_parent);
+}
+
+int
+w_window_get_x(struct w_window *w)
+{
+
+	return (w->w_x);
+}
+
+int
+w_window_get_y(struct w_window *w)
+{
+
+	return (w->w_y);
+}
