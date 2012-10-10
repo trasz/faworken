@@ -80,24 +80,26 @@ map_callback(struct w_window *w, int key)
 }
 
 static void
-make_caves(struct w_window *map, unsigned int width, unsigned int height)
+make_caves(struct w_window *map, unsigned int width, unsigned int height, unsigned int *number_of_cellsp, unsigned int *number_of_empty_cellsp)
 {
-	int x, y, cx, cy, i, rx, ry;
+	int x, y, cx, cy, rx, ry;
 	char c;
 
-	for (i = 0; i < width * height / 50; i++) {
+	while (*number_of_empty_cellsp < *number_of_cellsp / 3) {
 		x = rand() % width;
 		y = rand() % height;
-		c = w_window_get(map, x, y);
-		assert(c != '\0');
-		if (c == '#')
-			continue;
 
-		ry = rand() % 10;
-		rx = rand() % 10;
+		/*
+		 * XXX: Gaussian distribution.
+		 */
+		ry = rand() % 8 + 2;
+		rx = rand() % 8 + 2;
 
 		for (cy = y - ry; cy < y + ry; cy++) {
 			for (cx = x - rx; cx < x + rx; cx++) {
+				c = w_window_get(map, cx, cy);
+				if (c == '#')
+					(*number_of_empty_cellsp)++;
 				w_window_putstr(map, cx, cy, " ");
 			}
 		}
@@ -105,30 +107,51 @@ make_caves(struct w_window *map, unsigned int width, unsigned int height)
 }
 
 static void
-make_tunnels(struct w_window *map, unsigned int width, unsigned int height)
+make_tunnels(struct w_window *map, unsigned int width, unsigned int height, unsigned int *number_of_cellsp, unsigned int *number_of_empty_cellsp)
 {
-	int x, y, vx, vy, i;
+	int x, y, vx, vy, dir;
 	char c;
 
-	sranddev();
-
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++) {
-			w_window_putstr(map, x, y, "#");
+	while (*number_of_empty_cellsp / 3 < *number_of_cellsp / 7) {
+		/*
+		 * Find a random empty cell.
+		 */
+		for (;;) {
+			x = rand() % width;
+			y = rand() % height;
+			c = w_window_get(map, x, y);
+			if (c == ' ')
+				break;
 		}
-	}
 
-	for (i = 0; i < width * height / 800; i++) {
-		x = rand() % width;
-		y = rand() % height;
 		vx = vy = 0;
 
 		for (;;) {
 			/*
+			 * If we approach the edge of the map - make a turn.
+			 */
+			if (x + vx <= 1 || x + vx >= width - 2 || y + vy <= 1 || y + vy >= height - 2)
+				vx = vy = 0;
+
+			/*
 			 * Perhaps make a turn.
 			 */
 			if ((vx == 0 && vy == 0) || rand() % 100 > 90) {
-				switch (rand() % 4) {
+				/*
+				 * Change 'dir' by +1/-1.  This is to make sure
+				 * we never turn around 180 degrees in place.
+				 */
+				if (rand() % 2 == 1)
+					dir++;
+				else
+					dir--;
+
+				if (dir > 3)
+					dir = 0;
+				else if (dir < 0)
+					dir = 3;
+
+				switch (dir) {
 				case 0:
 					vx = 0;
 					vy = -1;
@@ -153,24 +176,25 @@ make_tunnels(struct w_window *map, unsigned int width, unsigned int height)
 
 			x += vx;
 			y += vy;
-			if (x < 0)
-				x = width;
-			if (x >= width)
-				x = 0;
-			if (y < 0)
-				y = height;
-			if (y >= height)
-				y = 0;
+
+			/*
+			 * For some reason we've approached the edge.  Don't go any further.
+			 */
+			if (x + vx <= 0 || x + vx >= width - 1 || y + vy <= 0 || y + vy >= height - 1)
+				break;
 
 			/*
 			 * Perhaps end here, if it joins some other corridor.
 			 */
 			c = w_window_get(map, x, y);
 			assert(c != '\0');
-			if (c == ' ' && rand() % 100 > 95)
-				break;
-
-			w_window_putstr(map, x, y, " ");
+			if (c == ' ') {
+				if (rand() % 100 > 95)
+					break;
+			} else {
+				(*number_of_empty_cellsp)++;
+				w_window_putstr(map, x, y, " ");
+			}
 		}
 	}
 }
@@ -178,8 +202,22 @@ make_tunnels(struct w_window *map, unsigned int width, unsigned int height)
 static void
 make_map(struct w_window *map, unsigned int width, unsigned int height)
 {
-	make_tunnels(map, width, height);
-	make_caves(map, width, height);
+	unsigned int x, y;
+	unsigned int number_of_cells, number_of_empty_cells;
+
+	sranddev();
+
+	for (y = 0; y < height; y++) {
+		for (x = 0; x < width; x++) {
+			w_window_putstr(map, x, y, "#");
+		}
+	}
+
+	number_of_cells = width * height;
+	number_of_empty_cells = 0;
+
+	make_caves(map, width, height, &number_of_cells, &number_of_empty_cells);
+	make_tunnels(map, width, height, &number_of_cells, &number_of_empty_cells);
 }
 
 int
