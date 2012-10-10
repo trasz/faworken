@@ -1,7 +1,5 @@
-- resizing
-- keyboard
-- redraw
-- moving
-- clipping
+- cursor position
+- check clipping
 - translucency
 - depth
+- get rid of scrolling
