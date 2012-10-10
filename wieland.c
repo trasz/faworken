@@ -349,6 +349,17 @@ w_window_get_parent(struct w_window *w)
 	return (w->w_parent);
 }
 
+struct w_window *
+w_window_get_root(struct w_window *w)
+{
+	struct w_window *root;
+
+	for (root = w; root->w_parent != NULL; root = root->w_parent)
+		continue;
+
+	return (root);
+}
+
 int
 w_window_get_x(struct w_window *w)
 {
@@ -361,4 +372,18 @@ w_window_get_y(struct w_window *w)
 {
 
 	return (w->w_y);
+}
+
+int
+w_window_get_width(struct w_window *w)
+{
+
+	return (w->w_w);
+}
+
+int
+w_window_get_height(struct w_window *w)
+{
+
+	return (w->w_h);
 }

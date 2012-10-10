@@ -6,6 +6,33 @@
 #include "wieland.h"
 
 static void
+help_callback(struct w_window *w, int key)
+{
+	switch (key) {
+	case 'q':
+		w_window_delete(w);
+		break;
+	default:
+		errx(1, "unknown key %d", key);
+	}
+}
+
+static void
+help(struct w_window *character)
+{
+	struct w_window *root, *w;
+	int help_width = 20, help_height = 20;
+
+	root = w_window_get_root(character);
+	w = w_window_new(root);
+	w_window_resize(w, help_width, help_height);
+	w_window_move(w, (w_window_get_width(root) - help_width) / 2, (w_window_get_height(root) - help_height) / 2);
+	w_window_putstr(w, 0, 0, "--------- help ----------");
+	w_window_putstr(w, 0, 19, "-------------------------");
+	w_window_bind(w, 'q', help_callback);
+}
+
+static void
 character_callback(struct w_window *w, int key)
 {
 	switch (key) {
@@ -20,6 +47,9 @@ character_callback(struct w_window *w, int key)
 		break;
 	case 'j':
 		w_window_move_by(w, 0, 1);
+		break;
+	case '?':
+		help(w);
 		break;
 	default:
 		errx(1, "unknown key %d", key);
@@ -74,6 +104,7 @@ main(void)
 	w_window_bind(character, 'k', character_callback);
 	w_window_bind(character, 'h', character_callback);
 	w_window_bind(character, 'l', character_callback);
+	w_window_bind(character, '?', character_callback);
 
 	w_window_bind(map, KEY_LEFT, map_callback);
 	w_window_bind(map, KEY_RIGHT, map_callback);

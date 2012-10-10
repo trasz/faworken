@@ -24,7 +24,10 @@ void		w_window_set_translucent_char(struct w_window *w, char c);
 void		w_window_bind(struct w_window *w, int key, void (*callback)(struct w_window *w, int key));
 
 struct w_window	*w_window_get_parent(struct w_window *w);
+struct w_window	*w_window_get_root(struct w_window *w);
 int		w_window_get_x(struct w_window *w);
 int		w_window_get_y(struct w_window *w);
+int		w_window_get_width(struct w_window *w);
+int		w_window_get_height(struct w_window *w);
 
 #endif /* !WIELAND_H */

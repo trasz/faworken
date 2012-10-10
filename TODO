@@ -1,5 +1,6 @@
-- cursor position
+- decorated windows
 - check clipping
 - translucency
 - depth
 - get rid of scrolling
+- map generation
