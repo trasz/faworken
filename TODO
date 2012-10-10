@@ -1,6 +1,6 @@
-- check clipping
 - translucency
 - depth
 - get rid of scrolling
 - map generation
 - queue of windows_with_pointer, to deal with destroying a window that had the pointer.
+- proper line drawing chars

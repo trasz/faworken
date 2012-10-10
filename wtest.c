@@ -1,5 +1,7 @@
+#include <assert.h>
 #include <curses.h>
 #include <err.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -77,26 +79,125 @@ map_callback(struct w_window *w, int key)
 	}
 }
 
+static void
+make_caves(struct w_window *map, unsigned int width, unsigned int height)
+{
+	int x, y, cx, cy, i, rx, ry;
+	char c;
+
+	for (i = 0; i < width * height / 50; i++) {
+		x = rand() % width;
+		y = rand() % height;
+		c = w_window_get(map, x, y);
+		assert(c != '\0');
+		if (c == '#')
+			continue;
+
+		ry = rand() % 10;
+		rx = rand() % 10;
+
+		for (cy = y - ry; cy < y + ry; cy++) {
+			for (cx = x - rx; cx < x + rx; cx++) {
+				w_window_putstr(map, cx, cy, " ");
+			}
+		}
+	}
+}
+
+static void
+make_tunnels(struct w_window *map, unsigned int width, unsigned int height)
+{
+	int x, y, vx, vy, i;
+	char c;
+
+	sranddev();
+
+	for (y = 0; y < height; y++) {
+		for (x = 0; x < width; x++) {
+			w_window_putstr(map, x, y, "#");
+		}
+	}
+
+	for (i = 0; i < width * height / 800; i++) {
+		x = rand() % width;
+		y = rand() % height;
+		vx = vy = 0;
+
+		for (;;) {
+			/*
+			 * Perhaps make a turn.
+			 */
+			if ((vx == 0 && vy == 0) || rand() % 100 > 90) {
+				switch (rand() % 4) {
+				case 0:
+					vx = 0;
+					vy = -1;
+					break;
+				case 1:
+					vx = 1;
+					vy = 0;
+					break;
+				case 2:
+					vx = 0;
+					vy = 1;
+					break;
+				case 3:
+					vx = -1;
+					vy = 0;
+					break;
+				default:
+					assert(!"meh");
+				}
+			}
+			assert(vx != 0 || vy != 0);
+
+			x += vx;
+			y += vy;
+			if (x < 0)
+				x = width;
+			if (x >= width)
+				x = 0;
+			if (y < 0)
+				y = height;
+			if (y >= height)
+				y = 0;
+
+			/*
+			 * Perhaps end here, if it joins some other corridor.
+			 */
+			c = w_window_get(map, x, y);
+			assert(c != '\0');
+			if (c == ' ' && rand() % 100 > 95)
+				break;
+
+			w_window_putstr(map, x, y, " ");
+		}
+	}
+}
+
+static void
+make_map(struct w_window *map, unsigned int width, unsigned int height)
+{
+	make_tunnels(map, width, height);
+	make_caves(map, width, height);
+}
+
 int
 main(void)
 {
 	struct w_window *root, *map, *character;
-	char buf[100];
-	int x, y;
+	int map_edge_len = 300;
 
 	root = w_init();
+
 	map = w_window_new(root);
-	w_window_resize(map, 1000, 1000);
-	w_window_move(map, -10, -10);
-	for (y = 0; y < 1000; y += 10) {
-		for (x = 0; x < 1000; x += 10) {
-			sprintf(buf, "<%d, %d>", x, y);
-			w_window_putstr(map, x, y, buf);
-		}
-	}
+	w_window_resize(map, map_edge_len, map_edge_len);
+	w_window_move(map, -map_edge_len / 3, -map_edge_len / 3);
+	make_map(map, map_edge_len, map_edge_len);
+
 	character = w_window_new(map);
 	w_window_resize(character, 1, 1);
-	w_window_move(character, 15, 15);
+	w_window_move(character, map_edge_len / 2, map_edge_len / 2);
 	w_window_move_cursor(character, 0, 0);
 	w_window_putstr(character, 0, 0, "@");
 

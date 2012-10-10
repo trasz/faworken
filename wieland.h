@@ -19,6 +19,7 @@ void		w_window_move_cursor(struct w_window *w, int x, int y);
 
 void		w_window_clear(struct w_window *w);
 void		w_window_putstr(struct w_window *w, int x, int y, const char *str);
+char		w_window_get(struct w_window *w, int x, int y);
 void		w_window_set_translucent_char(struct w_window *w, char c);
 
 void		w_window_bind(struct w_window *w, int key, void (*callback)(struct w_window *w, int key));

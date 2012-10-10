@@ -233,6 +233,19 @@ w_window_putstr(struct w_window *w, int x, int y, const char *str)
 	}
 }
 
+char
+w_window_get(struct w_window *w, int x, int y)
+{
+
+	if (y < 0 || y >= w->w_h)
+		return ('\0');
+
+	if (x < 0 || x >= w->w_w)
+		return ('\0');
+
+	return (w_data_get(w, x, y));
+}
+
 void
 w_window_set_translucent_char(struct w_window *w, char c)
 {
