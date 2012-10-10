@@ -24,11 +24,11 @@ help(struct w_window *character)
 	int help_width = 20, help_height = 20;
 
 	root = w_window_get_root(character);
-	w = w_window_new(root);
+	w = w_window_framed_new(root, "help");
 	w_window_resize(w, help_width, help_height);
 	w_window_move(w, (w_window_get_width(root) - help_width) / 2, (w_window_get_height(root) - help_height) / 2);
-	w_window_putstr(w, 0, 0, "--------- help ----------");
-	w_window_putstr(w, 0, 19, "-------------------------");
+	w_window_putstr(w, 0, 0, "first line");
+	w_window_putstr(w, 0, help_height - 1, "last line");
 	w_window_bind(w, 'q', help_callback);
 }
 

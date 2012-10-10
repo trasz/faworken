@@ -30,4 +30,6 @@ int		w_window_get_y(struct w_window *w);
 int		w_window_get_width(struct w_window *w);
 int		w_window_get_height(struct w_window *w);
 
+struct w_window	*w_window_framed_new(struct w_window *parent, const char *title);
+
 #endif /* !WIELAND_H */

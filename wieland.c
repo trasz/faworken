@@ -27,7 +27,11 @@ struct w_window {
 	struct w_window		*w_window_with_cursor;
 	int			w_cursor_x;
 	int			w_cursor_y;
+
+	char			*w_frame_title;
 };
+
+static void	w_window_redraw_frame(struct w_window *w);
 
 struct w_window	*
 w_init(void)
@@ -99,23 +103,38 @@ w_window_delete(struct w_window *w)
 	TAILQ_FOREACH_SAFE(wb, &w->w_bindings, wb_next, tmpwb)
 		free(wb);
 
+	free(w->w_frame_title);
 	free(w);
+}
+
+static bool
+w_window_is_framed(const struct w_window *w)
+{
+	if (w->w_parent != NULL && w->w_parent->w_frame_title != NULL)
+		return (true);
+	return (false);
 }
 
 void
 w_window_move(struct w_window *w, int x, int y)
 {
-
-	w->w_x = x;
-	w->w_y = y;
+	if (w_window_is_framed(w)) {
+		w_window_move(w->w_parent, x, y);
+	} else {
+		w->w_x = x;
+		w->w_y = y;
+	}
 }
 
 void
 w_window_move_by(struct w_window *w, int x, int y)
 {
-
-	w->w_x += x;
-	w->w_y += y;
+	if (w_window_is_framed(w)) {
+		w_window_move_by(w->w_parent, x, y);
+	} else {
+		w->w_x += x;
+		w->w_y += y;
+	}
 }
 
 void
@@ -134,6 +153,11 @@ w_window_resize(struct w_window *w, unsigned int width, unsigned int height)
 	if (w->w_data == NULL)
 		err(1, "calloc");
 	w_window_clear(w);
+
+	if (w_window_is_framed(w)) {
+		w_window_resize(w->w_parent, width + 2, height + 2);
+		w_window_redraw_frame(w->w_parent);
+	}
 }
 
 void
@@ -363,6 +387,8 @@ w_window_get_root(struct w_window *w)
 int
 w_window_get_x(struct w_window *w)
 {
+	if (w_window_is_framed(w))
+		return (w_window_get_x(w->w_parent));
 
 	return (w->w_x);
 }
@@ -370,6 +396,8 @@ w_window_get_x(struct w_window *w)
 int
 w_window_get_y(struct w_window *w)
 {
+	if (w_window_is_framed(w))
+		return (w_window_get_y(w->w_parent));
 
 	return (w->w_y);
 }
@@ -386,4 +414,53 @@ w_window_get_height(struct w_window *w)
 {
 
 	return (w->w_h);
+}
+
+struct w_window	*
+w_window_framed_new(struct w_window *parent, const char *title)
+{
+	struct w_window *frame, *w;
+
+	frame = w_window_new(parent);
+	frame->w_frame_title = strdup(title);
+	if (frame->w_frame_title == NULL)
+		err(1, "strdup");
+	w = w_window_new(frame);
+	w->w_x = 1;
+	w->w_y = 1;
+	return (w);
+}
+
+static void
+w_window_redraw_frame(struct w_window *w)
+{
+	int x, y;
+
+	assert(w->w_frame_title != NULL);
+
+	if (w->w_h == 0 || w->w_w == 0)
+		return;
+
+	/*
+	 * Frame.
+	 */
+	for (x = 1; x < w->w_w - 1; x++)
+		w_window_putstr(w, x, 0, "-");
+	for (y = 1; y < w->w_w - 1; y++) {
+		w_window_putstr(w, 0, y, "|");
+		w_window_putstr(w, w->w_w - 1, y, "|");
+	}
+	for (x = 1; x < w->w_w - 1; x++)
+		w_window_putstr(w, x, w->w_h - 1, "-");
+	w_window_putstr(w, 0, 0, "+");
+	w_window_putstr(w, w->w_w - 1, 0, "+");
+	w_window_putstr(w, w->w_w - 1, w->w_h - 1, "+");
+	w_window_putstr(w, 0, w->w_h - 1, "+");
+
+	/*
+	 * Title.
+	 */
+	w_window_putstr(w, 1, 0, "[ ");
+	w_window_putstr(w, 1 + strlen("[ "), 0, w->w_frame_title);
+	w_window_putstr(w, 1 + strlen("[ ") + strlen(w->w_frame_title), 0, " ]");
 }
