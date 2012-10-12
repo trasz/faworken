@@ -55,13 +55,17 @@ scroll_map(struct w_window *character)
 	if (y_margin > 10)
 		y_margin = 10;
 
-	if (w_window_get_x(character) < -w_window_get_x(map) + x_margin)
+	if (w_window_get_x(map) < 0 &&
+	    w_window_get_x(character) < -w_window_get_x(map) + x_margin)
 		w_window_move_by(map, 1, 0);
-	else if (w_window_get_x(character) > -w_window_get_x(map) + screen_width - x_margin)
+	else if (w_window_get_x(map) + w_window_get_width(map) > screen_width &&
+	    w_window_get_x(character) > -w_window_get_x(map) + screen_width - x_margin)
 		w_window_move_by(map, -1, 0);
-	if (w_window_get_y(character) < -w_window_get_y(map) + y_margin)
+	if (w_window_get_y(map) < 0 &&
+	    w_window_get_y(character) < -w_window_get_y(map) + y_margin)
 		w_window_move_by(map, 0, 1);
-	else if (w_window_get_y(character) > -w_window_get_y(map) + screen_height - y_margin)
+	else if (w_window_get_y(map) + w_window_get_height(map) > screen_height &&
+	    w_window_get_y(character) > -w_window_get_y(map) + screen_height - y_margin)
 		w_window_move_by(map, 0, -1);
 }
 

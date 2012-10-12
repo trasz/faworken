@@ -1,4 +1,3 @@
-- don't scroll too far to show 'underneath' the map
 - restrict character movement
 - handle terminal resizing
 - translucency
