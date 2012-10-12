@@ -6,7 +6,7 @@ struct window;
 struct window	*window_init(void);
 void		window_fini(struct window *w);
 void		window_redraw(struct window *w);
-void		window_wait_for_key(struct window *w);
+void		window_check_input_fd(struct window *w);
 int		window_get_input_fd(struct window *w);
 
 struct window	*window_new(struct window *parent);

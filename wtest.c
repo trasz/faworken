@@ -145,13 +145,24 @@ character_callback(struct window *w, int key)
 	scroll_map(w);
 }
 
+static int
+fd_add(int fd, fd_set *fdset, int nfds)
+{
+
+	FD_SET(fd, fdset);
+	if (fd > nfds)
+		nfds = fd;
+	return (nfds);
+}
+
 int
 main(void)
 {
 	struct window *root, *map_window, *character;
 	struct map *map;
 	struct actor *actor;
-	int map_edge_len = 300;
+	int map_edge_len = 300, input_fd, error, nfds;
+	fd_set fdset;
 
 	root = window_init();
 	map_window = window_new(root);
@@ -180,10 +191,25 @@ main(void)
 	window_bind(character, KEY_RIGHT, character_callback);
 	window_bind(character, '?', character_callback);
 
+	input_fd = window_get_input_fd(root);
+	window_redraw(root);
+
 	for (;;) {
-		window_redraw(root);
-		window_wait_for_key(character);
+		FD_ZERO(&fdset);
+		nfds = 0;
+		nfds = fd_add(input_fd, &fdset, nfds);
+		error = select(nfds + 1, &fdset, NULL, NULL, NULL);
+		if (error <= 0)
+			err(1, "select");
+
+		if (FD_ISSET(input_fd, &fdset)) {
+			window_check_input_fd(character);
+			window_redraw(root);
+			continue;
+		}
+		err(1, "select returned unknown fd");
 	}
+
 	window_fini(root);
 	return (0);
 }

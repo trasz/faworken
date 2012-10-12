@@ -358,12 +358,18 @@ window_redraw(struct window *w)
 }
 
 void
-window_wait_for_key(struct window *w)
+window_check_input_fd(struct window *w)
 {
 	struct w_binding *wb;
 	int key;
 
 	key = getch();
+	if (key == ERR) {
+		/*
+		 * No input.
+		 */
+		return;
+	}
 	for (; w != NULL; w = w->w_parent) {
 		wb = window_binding_find(w, key);
 		if (wb != NULL) {
@@ -374,10 +380,10 @@ window_wait_for_key(struct window *w)
 }
 
 int
-w_get_input_fd(struct window *w)
+window_get_input_fd(struct window *w)
 {
 
-	return (42);
+	return (fileno(stdin));
 }
 
 struct window *
