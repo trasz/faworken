@@ -59,27 +59,6 @@ character_callback(struct w_window *w, int key)
 	}
 }
 
-static void
-map_callback(struct w_window *w, int key)
-{
-	switch (key) {
-	case KEY_LEFT:
-		w_window_move_by(w, -1, 0);
-		break;
-	case KEY_RIGHT:
-		w_window_move_by(w, 1, 0);
-		break;
-	case KEY_UP:
-		w_window_move_by(w, 0, -1);
-		break;
-	case KEY_DOWN:
-		w_window_move_by(w, 0, 1);
-		break;
-	default:
-		errx(1, "unknown key %d", key);
-	}
-}
-
 int
 main(void)
 {
@@ -91,7 +70,6 @@ main(void)
 	root = w_init();
 	map_window = w_window_new(root);
 	w_window_resize(map_window, map_edge_len, map_edge_len);
-	w_window_move(map_window, -map_edge_len / 3, -map_edge_len / 3);
 
 	map = map_make(map_window);
 
@@ -102,16 +80,16 @@ main(void)
 	w_window_move_cursor(character, 0, 0);
 	w_window_putstr(character, 0, 0, "@");
 
+	/*
+	 * Move the map to the position where the character is in the center of the screen.
+	 */
+	w_window_move(map_window, -x + w_window_get_width(root) / 2, -y + w_window_get_height(root) / 2);
+
 	w_window_bind(character, 'j', character_callback);
 	w_window_bind(character, 'k', character_callback);
 	w_window_bind(character, 'h', character_callback);
 	w_window_bind(character, 'l', character_callback);
 	w_window_bind(character, '?', character_callback);
-
-	w_window_bind(map_window, KEY_LEFT, map_callback);
-	w_window_bind(map_window, KEY_RIGHT, map_callback);
-	w_window_bind(map_window, KEY_UP, map_callback);
-	w_window_bind(map_window, KEY_DOWN, map_callback);
 
 	for (;;) {
 		w_redraw(root);
