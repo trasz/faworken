@@ -187,54 +187,56 @@ map_make_walls(struct map *m)
 }
 
 /*
- * The point of this is to remove walls that looke like those:
+ * The point of this is to remove walls thinner than three cells, which
+ * would end up looking like those:
  *
  *   || 				|
  *   ||               -------------	|
  *   ||               -------------
  *
- *   Reason is that they look ugly.
  */
 static void
 map_remove_thin_walls(struct map *m)
 {
 	unsigned int x, y;
-	char c, c2;
+	char c;
 
-	for (y = 1; y < m->m_height - 1; y++) {
-		for (x = 1; x < m->m_width - 1; x++) {
+	/*
+	 * Horizontal pass.
+	 */
+	for (y = 0; y < m->m_height; y++) {
+		int cells = 0;
+		for (x = 3; x < m->m_width; x++) {
 			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
-			if (c == '|') {
-				c2 = window_get(m->m_window, x - 1, y);
-				assert(c2 != '\0');
-				if (c2 == '|') {
-					window_putstr(m->m_window, x, y, " ");
-					window_putstr(m->m_window, x - 1, y, " ");
-					continue;
-				} else if (c2 == ' ') {
-					c2 = window_get(m->m_window, x + 1, y);
-					assert(c2 != '\0');
-					if (c2 == ' ') {
-						window_putstr(m->m_window, x, y, " ");
-						continue;
-					}
-				}
-			} else if (c == '-') {
-				c2 = window_get(m->m_window, x, y - 1);
-				assert(c2 != '\0');
-				if (c2 == '-') {
-					window_putstr(m->m_window, x, y, " ");
+			if (c == ' ') {
+				if (cells > 0 && cells < 3)
+					window_putstr(m->m_window, x - 2, y, "  ");
+				cells = 0;
+				continue;
+			} else {
+				cells++;
+			}
+		}
+	}
+
+	/*
+	 * Vertical pass.
+	 */
+	for (x = 0; x < m->m_width; x++) {
+		int cells = 0;
+		for (y = 3; y < m->m_height; y++) {
+			c = window_get(m->m_window, x, y);
+			assert(c != '\0');
+			if (c == ' ') {
+				if (cells > 0 && cells < 3) {
 					window_putstr(m->m_window, x, y - 1, " ");
-					continue;
-				} else if (c2 == ' ') {
-					c2 = window_get(m->m_window, x, y + 1);
-					assert(c2 != '\0');
-					if (c2 == ' ') {
-						window_putstr(m->m_window, x, y, " ");
-						continue;
-					}
+					window_putstr(m->m_window, x, y - 2, " ");
 				}
+				cells = 0;
+				continue;
+			} else {
+				cells++;
 			}
 		}
 	}
@@ -282,12 +284,8 @@ map_make(struct window *map_window)
 		window_putstr(m->m_window, x, m->m_height - 2, "#");
 	}
 
-	map_make_walls(m);
 	map_remove_thin_walls(m);
 	map_make_walls(m);
-	map_remove_thin_walls(m);
-	map_make_walls(m);
-	map_remove_thin_walls(m);
 
 	return (m);
 }
