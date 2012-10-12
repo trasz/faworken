@@ -36,6 +36,47 @@ help(struct w_window *character)
 }
 
 static void
+center_map(struct w_window *character)
+{
+	struct w_window *root, *map;
+	unsigned int screen_width, screen_height, x_char, y_char;
+	int x_off, y_off;
+
+	map = w_window_get_parent(character);
+	root = w_window_get_root(character);
+	screen_width = w_window_get_width(root);
+	screen_height = w_window_get_height(root);
+
+	x_char = w_window_get_x(character);
+	y_char = w_window_get_y(character);
+
+	/*
+	 * Move the map to the position where the character is in the center of the screen.
+	 */
+	w_window_move(map, -x_char + w_window_get_width(root) / 2, -y_char + w_window_get_height(root) / 2);
+
+	/*
+	 * Now move the map so that it covers the whole screen, even if that means the character
+	 * won't be in the center any more.
+	 */
+	x_off = -w_window_get_x(map);
+	if (x_off < 0)
+		w_window_move_by(map, x_off, 0);
+
+	x_off = -w_window_get_x(map) - w_window_get_width(map) + screen_width;
+	if (x_off > 0)
+		w_window_move_by(map, x_off, 0);
+
+	y_off = -w_window_get_y(map);
+	if (y_off < 0)
+		w_window_move_by(map, 0, y_off);
+
+	y_off = -w_window_get_y(map) - w_window_get_height(map) + screen_height;
+	if (y_off > 0)
+		w_window_move_by(map, 0, y_off);
+}
+
+static void
 scroll_map(struct w_window *character)
 {
 	struct w_window *root, *map;
@@ -117,10 +158,7 @@ main(void)
 	w_window_move_cursor(character, 0, 0);
 	w_window_putstr(character, 0, 0, "@");
 
-	/*
-	 * Move the map to the position where the character is in the center of the screen.
-	 */
-	w_window_move(map_window, -x + w_window_get_width(root) / 2, -y + w_window_get_height(root) / 2);
+	center_map(character);
 
 	w_window_bind(character, 'j', character_callback);
 	w_window_bind(character, 'k', character_callback);
