@@ -1,3 +1,7 @@
+- decouple map and window
+- split code into to-be-client and to-be-server
+- network
+- asynchronicity
 - handle terminal resizing
 - translucency
 - depth
