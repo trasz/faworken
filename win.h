@@ -3,11 +3,11 @@
 
 struct window;
 
-struct window	*w_init(void);
-void		w_fini(struct window *w);
-void		w_redraw(struct window *w);
-void		w_wait_for_key(struct window *w);
-int		w_get_input_fd(struct window *w);
+struct window	*window_init(void);
+void		window_fini(struct window *w);
+void		window_redraw(struct window *w);
+void		window_wait_for_key(struct window *w);
+int		window_get_input_fd(struct window *w);
 
 struct window	*window_new(struct window *parent);
 void		window_delete(struct window *w);

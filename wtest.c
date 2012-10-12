@@ -149,7 +149,7 @@ main(void)
 	int map_edge_len = 300;
 	unsigned int x, y;
 
-	root = w_init();
+	root = window_init();
 	map_window = window_new(root);
 	window_resize(map_window, map_edge_len, map_edge_len);
 
@@ -175,9 +175,9 @@ main(void)
 	window_bind(character, '?', character_callback);
 
 	for (;;) {
-		w_redraw(root);
-		w_wait_for_key(character);
+		window_redraw(root);
+		window_wait_for_key(character);
 	}
-	w_fini(root);
+	window_fini(root);
 	return (0);
 }

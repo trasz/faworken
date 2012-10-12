@@ -21,10 +21,10 @@ struct window {
 	int			w_y;
 	unsigned int		w_w;
 	unsigned int		w_h;
-	TAILQ_HEAD(, window)	windows;
+	TAILQ_HEAD(, window)	w_windows;
 	TAILQ_HEAD(, w_binding)	w_bindings;
 	char			*w_data;
-	struct window		*window_with_cursor;
+	struct window		*w_window_with_cursor;
 	int			w_cursor_x;
 	int			w_cursor_y;
 
@@ -34,7 +34,7 @@ struct window {
 static void	window_redraw_frame(struct window *w);
 
 struct window	*
-w_init(void)
+window_init(void)
 {
 	struct window *root;
 	int maxx, maxy, error;
@@ -62,7 +62,7 @@ w_init(void)
 }
 
 void
-w_fini(struct window *w)
+window_fini(struct window *w)
 {
 	int error;
 
@@ -81,12 +81,12 @@ window_new(struct window *parent)
 	w = calloc(1, sizeof(*w));
 	if (w == NULL)
 		err(1, "calloc");
-	TAILQ_INIT(&w->windows);
+	TAILQ_INIT(&w->w_windows);
 	TAILQ_INIT(&w->w_bindings);
 
 	if (parent != NULL) {
 		w->w_parent = parent;
-		TAILQ_INSERT_TAIL(&parent->windows, w, w_next);
+		TAILQ_INSERT_TAIL(&parent->w_windows, w, w_next);
 	}
 
 	return (w);
@@ -98,7 +98,7 @@ window_delete(struct window *w)
 	struct window *child, *tmpchild;
 	struct w_binding *wb, *tmpwb;
 
-	TAILQ_FOREACH_SAFE(child, &w->windows, w_next, tmpchild)
+	TAILQ_FOREACH_SAFE(child, &w->w_windows, w_next, tmpchild)
 		window_delete(child);
 	TAILQ_FOREACH_SAFE(wb, &w->w_bindings, wb_next, tmpwb)
 		free(wb);
@@ -168,7 +168,7 @@ window_move_cursor(struct window *w, int x, int y)
 	for (root = w; root->w_parent != NULL; root = root->w_parent)
 		continue;
 
-	root->window_with_cursor = w;
+	root->w_window_with_cursor = w;
 
 	w->w_cursor_x = x;
 	w->w_cursor_y = y;
@@ -320,7 +320,7 @@ window_draw_cursor(struct window *w, int x, int y)
 }
 
 static void
-window_redraw(struct window *w)
+window_redraw_internal(struct window *w)
 {
 	struct window *child;
 	int x, y;
@@ -337,19 +337,19 @@ window_redraw(struct window *w)
 		}
 	}
 
-	TAILQ_FOREACH(child, &w->windows, w_next)
-		window_redraw(child);
+	TAILQ_FOREACH(child, &w->w_windows, w_next)
+		window_redraw_internal(child);
 }
 
 void
-w_redraw(struct window *w)
+window_redraw(struct window *w)
 {
 	int error;
 
-	window_redraw(w);
+	window_redraw_internal(w);
 
-	if (w->window_with_cursor != NULL)
-		window_draw_cursor(w->window_with_cursor, w->window_with_cursor->w_cursor_x, w->window_with_cursor->w_cursor_y);
+	if (w->w_window_with_cursor != NULL)
+		window_draw_cursor(w->w_window_with_cursor, w->w_window_with_cursor->w_cursor_x, w->w_window_with_cursor->w_cursor_y);
 
 	error = refresh();
 	if (error == ERR)
@@ -357,7 +357,7 @@ w_redraw(struct window *w)
 }
 
 void
-w_wait_for_key(struct window *w)
+window_wait_for_key(struct window *w)
 {
 	struct w_binding *wb;
 	int key;
