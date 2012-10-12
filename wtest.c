@@ -36,8 +36,39 @@ help(struct w_window *character)
 }
 
 static void
+scroll_map(struct w_window *character)
+{
+	struct w_window *root, *map;
+	unsigned int screen_width, screen_height;
+	unsigned int x_margin, y_margin;
+
+	map = w_window_get_parent(character);
+	root = w_window_get_root(character);
+	screen_width = w_window_get_width(root);
+	screen_height = w_window_get_height(root);
+
+	x_margin = screen_width / 4;
+	if (x_margin > 10)
+		x_margin = 10;
+
+	y_margin = screen_height / 4;
+	if (y_margin > 10)
+		y_margin = 10;
+
+	if (w_window_get_x(character) < -w_window_get_x(map) + x_margin)
+		w_window_move_by(map, 1, 0);
+	else if (w_window_get_x(character) > -w_window_get_x(map) + screen_width - x_margin)
+		w_window_move_by(map, -1, 0);
+	if (w_window_get_y(character) < -w_window_get_y(map) + y_margin)
+		w_window_move_by(map, 0, 1);
+	else if (w_window_get_y(character) > -w_window_get_y(map) + screen_height - y_margin)
+		w_window_move_by(map, 0, -1);
+}
+
+static void
 character_callback(struct w_window *w, int key)
 {
+
 	switch (key) {
 	case 'h':
 		w_window_move_by(w, -1, 0);
@@ -57,6 +88,8 @@ character_callback(struct w_window *w, int key)
 	default:
 		errx(1, "unknown key %d", key);
 	}
+
+	scroll_map(w);
 }
 
 int

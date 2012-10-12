@@ -1,5 +1,5 @@
+- don't scroll too far to show 'underneath' the map
 - restrict character movement
-- automatic map scrolling; don't scroll too far to show 'underneath' the map
 - handle terminal resizing
 - translucency
 - depth
