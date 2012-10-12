@@ -2,7 +2,7 @@
 #include <err.h>
 #include <stdlib.h>
 
-#include "win.h"
+#include "window.h"
 #include "map.h"
 
 struct map {

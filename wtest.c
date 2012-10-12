@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "win.h"
+#include "window.h"
 #include "map.h"
 
 static void

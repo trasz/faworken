@@ -1,6 +1,6 @@
 all: wtest
 
-wtest: wtest.c win.c map.c
+wtest: wtest.c window.c map.c
 	$(CC) -o wtest *.c -lcurses -ggdb -Wall
 
 clean:
