@@ -13,6 +13,12 @@ struct map {
 	struct window	*m_window;
 };
 
+struct actor {
+	struct map	*a_map;
+	unsigned int	a_x;
+	unsigned int	a_y;
+};
+
 static void
 map_make_caves(struct map *m)
 {
@@ -287,7 +293,7 @@ map_make(struct window *map_window)
 	return (m);
 }
 
-void
+static void
 map_find_empty_spot(struct map *m, unsigned int *xp, unsigned int *yp)
 {
 	unsigned int x, y;
@@ -308,3 +314,46 @@ map_find_empty_spot(struct map *m, unsigned int *xp, unsigned int *yp)
 	}
 }
 
+struct actor *
+map_actor_new(struct map *m)
+{
+	struct actor *a;
+
+	a = calloc(1, sizeof(*a));
+	if (a == NULL)
+		err(1, "calloc");
+
+	a->a_map = m;
+	map_find_empty_spot(m, &a->a_x, &a->a_y);
+	return (a);
+}
+
+unsigned int
+map_actor_get_x(struct actor *a)
+{
+
+	return (a->a_x);
+}
+
+unsigned int
+map_actor_get_y(struct actor *a)
+{
+
+	return (a->a_y);
+}
+
+int
+map_actor_move_by(struct actor *a, int dx, int dy)
+{
+	char c;
+
+	c = window_get(a->a_map->m_window, a->a_x + dx, a->a_y + dy);
+	assert(c != '\0');
+	if (c != ' ')
+		return (1);
+
+	a->a_x += dx;
+	a->a_y += dy;
+
+	return (0);
+}

@@ -33,4 +33,7 @@ int		window_get_height(struct window *w);
 
 struct window	*window_framed_new(struct window *parent, const char *title);
 
+void		window_set_uptr(struct window *w, void *uptr);
+void		*window_uptr(struct window *w);
+
 #endif /* !WINDOW_H */

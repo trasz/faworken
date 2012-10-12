@@ -27,6 +27,7 @@ struct window {
 	struct window		*w_window_with_cursor;
 	int			w_cursor_x;
 	int			w_cursor_y;
+	void			*w_uptr;
 
 	char			*w_frame_title;
 };
@@ -476,4 +477,18 @@ window_redraw_frame(struct window *w)
 	window_putstr(w, 1, 0, "[ ");
 	window_putstr(w, 1 + strlen("[ "), 0, w->w_frame_title);
 	window_putstr(w, 1 + strlen("[ ") + strlen(w->w_frame_title), 0, " ]");
+}
+
+void
+window_set_uptr(struct window *w, void *uptr)
+{
+
+	w->w_uptr = uptr;
+}
+
+void *
+window_uptr(struct window *w)
+{
+
+	return (w->w_uptr);
 }

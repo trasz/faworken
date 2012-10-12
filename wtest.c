@@ -113,23 +113,26 @@ scroll_map(struct window *character)
 static void
 character_callback(struct window *w, int key)
 {
+	struct actor *a;
+
+	a = window_uptr(w);
 
 	switch (key) {
 	case 'h':
 	case KEY_LEFT:
-		window_move_by(w, -1, 0);
+		map_actor_move_by(a, -1, 0);
 		break;
 	case 'l':
 	case KEY_RIGHT:
-		window_move_by(w, 1, 0);
+		map_actor_move_by(a, 1, 0);
 		break;
 	case 'k':
 	case KEY_UP:
-		window_move_by(w, 0, -1);
+		map_actor_move_by(a, 0, -1);
 		break;
 	case 'j':
 	case KEY_DOWN:
-		window_move_by(w, 0, 1);
+		map_actor_move_by(a, 0, 1);
 		break;
 	case '?':
 		help(w);
@@ -138,6 +141,7 @@ character_callback(struct window *w, int key)
 		errx(1, "unknown key %d", key);
 	}
 
+	window_move(w, map_actor_get_x(a), map_actor_get_y(a));
 	scroll_map(w);
 }
 
@@ -146,21 +150,23 @@ main(void)
 {
 	struct window *root, *map_window, *character;
 	struct map *map;
+	struct actor *actor;
 	int map_edge_len = 300;
-	unsigned int x, y;
 
 	root = window_init();
 	map_window = window_new(root);
 	window_resize(map_window, map_edge_len, map_edge_len);
 
 	map = map_make(map_window);
+	window_set_uptr(map_window, map);
 
+	actor = map_actor_new(map);
 	character = window_new(map_window);
 	window_resize(character, 1, 1);
-	map_find_empty_spot(map, &x, &y);
-	window_move(character, x, y);
+	window_move(character, map_actor_get_x(actor), map_actor_get_y(actor));
 	window_move_cursor(character, 0, 0);
 	window_putstr(character, 0, 0, "@");
+	window_set_uptr(character, actor);
 
 	center_map(character);
 
