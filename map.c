@@ -133,6 +133,112 @@ map_make_tunnels(struct map *m)
 	}
 }
 
+static void
+map_make_walls(struct map *m)
+{
+	int x, y;
+	char c, c2;
+
+	for (y = 1; y < m->m_height - 1; y++) {
+		for (x = 1; x < m->m_width - 1; x++) {
+			c = w_window_get(m->m_window, x, y);
+			assert(c != '\0');
+			if (c == ' ')
+				continue;
+			c2 = w_window_get(m->m_window, x - 1, y);
+			assert(c2 != '\0');
+			if (c2 == ' ') {
+				w_window_putstr(m->m_window, x, y, "|");
+				continue;
+			}
+
+			c2 = w_window_get(m->m_window, x + 1, y);
+			assert(c2 != '\0');
+			if (c2 == ' ') {
+				w_window_putstr(m->m_window, x, y, "|");
+				continue;
+			}
+		}
+	}
+
+	for (y = 1; y < m->m_height - 1; y++) {
+		for (x = 1; x < m->m_width - 1; x++) {
+			c = w_window_get(m->m_window, x, y);
+			assert(c != '\0');
+			if (c == ' ')
+				continue;
+
+			c2 = w_window_get(m->m_window, x, y - 1);
+			assert(c2 != '\0');
+			if (c2 == ' ') {
+				w_window_putstr(m->m_window, x, y, "-");
+				continue;
+			}
+
+			c2 = w_window_get(m->m_window, x, y + 1);
+			assert(c2 != '\0');
+			if (c2 == ' ') {
+				w_window_putstr(m->m_window, x, y, "-");
+				continue;
+			}
+		}
+	}
+}
+
+/*
+ * The point of this is to remove walls that looke like those:
+ *
+ *   || 				|
+ *   ||               -------------	|
+ *   ||               -------------
+ *
+ *   Reason is that they look ugly.
+ */
+static void
+map_remove_thin_walls(struct map *m)
+{
+	int x, y;
+	char c, c2;
+
+	for (y = 1; y < m->m_height - 1; y++) {
+		for (x = 1; x < m->m_width - 1; x++) {
+			c = w_window_get(m->m_window, x, y);
+			assert(c != '\0');
+			if (c == '|') {
+				c2 = w_window_get(m->m_window, x - 1, y);
+				assert(c2 != '\0');
+				if (c2 == '|') {
+					w_window_putstr(m->m_window, x, y, " ");
+					w_window_putstr(m->m_window, x - 1, y, " ");
+					continue;
+				} else if (c2 == ' ') {
+					c2 = w_window_get(m->m_window, x + 1, y);
+					assert(c2 != '\0');
+					if (c2 == ' ') {
+						w_window_putstr(m->m_window, x, y, " ");
+						continue;
+					}
+				}
+			} else if (c == '-') {
+				c2 = w_window_get(m->m_window, x, y - 1);
+				assert(c2 != '\0');
+				if (c2 == '-') {
+					w_window_putstr(m->m_window, x, y, " ");
+					w_window_putstr(m->m_window, x, y - 1, " ");
+					continue;
+				} else if (c2 == ' ') {
+					c2 = w_window_get(m->m_window, x, y + 1);
+					assert(c2 != '\0');
+					if (c2 == ' ') {
+						w_window_putstr(m->m_window, x, y, " ");
+						continue;
+					}
+				}
+			}
+		}
+	}
+}
+
 struct w_window *
 map_make(struct w_window *parent, unsigned int width, unsigned int height)
 {
@@ -151,14 +257,38 @@ map_make(struct w_window *parent, unsigned int width, unsigned int height)
 
 	sranddev();
 
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++) {
+	/*
+	 * Fill the map with solid rock.
+	 */
+	for (y = 0; y < m->m_height; y++) {
+		for (x = 0; x < m->m_width; x++) {
 			w_window_putstr(m->m_window, x, y, "#");
 		}
 	}
 
 	map_make_caves(m);
 	map_make_tunnels(m);
+
+	/*
+	 * Make sure there is no empty space at the border.
+	 */
+	for (y = 0; y < height; y++) {
+		w_window_putstr(m->m_window, 0, y, "##");
+		w_window_putstr(m->m_window, m->m_width - 2, y, "##");
+	}
+	for (x = 0; x < width; x++) {
+		w_window_putstr(m->m_window, x, 0, "#");
+		w_window_putstr(m->m_window, x, 1, "#");
+		w_window_putstr(m->m_window, x, m->m_height - 1, "#");
+		w_window_putstr(m->m_window, x, m->m_height - 2, "#");
+	}
+
+	map_make_walls(m);
+	map_remove_thin_walls(m);
+	map_make_walls(m);
+	map_remove_thin_walls(m);
+	map_make_walls(m);
+	map_remove_thin_walls(m);
 
 	w = m->m_window;
 	free(m);
