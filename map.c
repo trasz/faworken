@@ -138,50 +138,45 @@ static void
 map_make_walls(struct map *m)
 {
 	unsigned int x, y;
-	char c, c2;
+	char c, prevc;
 
 	for (y = 1; y < m->m_height - 1; y++) {
 		for (x = 1; x < m->m_width - 1; x++) {
 			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
-			if (c == ' ')
-				continue;
-			c2 = window_get(m->m_window, x - 1, y);
-			assert(c2 != '\0');
-			if (c2 == ' ') {
+			if (prevc == ' ' && c != ' ')
 				window_putstr(m->m_window, x, y, "|");
-				continue;
-			}
-
-			c2 = window_get(m->m_window, x + 1, y);
-			assert(c2 != '\0');
-			if (c2 == ' ') {
+			prevc = c;
+			continue;
+		}
+		for (x = m->m_width - 1; x > 0; x--) {
+			c = window_get(m->m_window, x, y);
+			assert(c != '\0');
+			if (prevc == ' ' && c != ' ')
 				window_putstr(m->m_window, x, y, "|");
-				continue;
-			}
+			prevc = c;
+			continue;
 		}
 	}
 
-	for (y = 1; y < m->m_height - 1; y++) {
-		for (x = 1; x < m->m_width - 1; x++) {
+	for (x = 1; x < m->m_width - 1; x++) {
+		for (y = 1; y < m->m_height - 1; y++) {
 			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
-			if (c == ' ')
-				continue;
-
-			c2 = window_get(m->m_window, x, y - 1);
-			assert(c2 != '\0');
-			if (c2 == ' ') {
+			if ((prevc == ' ' && c != ' ') ||
+			    (prevc == '|' && c == '#'))
 				window_putstr(m->m_window, x, y, "-");
-				continue;
-			}
-
-			c2 = window_get(m->m_window, x, y + 1);
-			assert(c2 != '\0');
-			if (c2 == ' ') {
+			prevc = c;
+			continue;
+		}
+		for (y = m->m_height - 1; y > 0; y--) {
+			c = window_get(m->m_window, x, y);
+			assert(c != '\0');
+			if ((prevc == ' ' && c != ' ') ||
+			    (prevc == '|' && c == '#'))
 				window_putstr(m->m_window, x, y, "-");
-				continue;
-			}
+			prevc = c;
+			continue;
 		}
 	}
 }
