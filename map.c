@@ -16,7 +16,7 @@ struct map {
 static void
 map_make_caves(struct map *m)
 {
-	int x, y, cx, cy, rx, ry;
+	unsigned int x, y, cx, cy, rx, ry;
 	char c;
 
 	while (m->m_number_of_empty_cells < m->m_number_of_cells / 3) {
@@ -43,7 +43,8 @@ map_make_caves(struct map *m)
 static void
 map_make_tunnels(struct map *m)
 {
-	int x, y, vx, vy, dir;
+	unsigned int x, y; 
+	int vx, vy, dir;
 	char c;
 
 	while (m->m_number_of_empty_cells / 3 < m->m_number_of_cells / 7) {
@@ -136,7 +137,7 @@ map_make_tunnels(struct map *m)
 static void
 map_make_walls(struct map *m)
 {
-	int x, y;
+	unsigned int x, y;
 	char c, c2;
 
 	for (y = 1; y < m->m_height - 1; y++) {
@@ -197,7 +198,7 @@ map_make_walls(struct map *m)
 static void
 map_remove_thin_walls(struct map *m)
 {
-	int x, y;
+	unsigned int x, y;
 	char c, c2;
 
 	for (y = 1; y < m->m_height - 1; y++) {
@@ -239,21 +240,19 @@ map_remove_thin_walls(struct map *m)
 	}
 }
 
-struct w_window *
-map_make(struct w_window *parent, unsigned int width, unsigned int height)
+struct map *
+map_make(struct w_window *map_window)
 {
 	struct map *m;
-	struct w_window *w;
 	unsigned int x, y;
 
 	m = calloc(1, sizeof(*m));
 	if (m == NULL)
 		err(1, "calloc");
-	m->m_width = width;
-	m->m_height = height;
-	m->m_number_of_cells = width * height;
-	m->m_window = w_window_new(parent);
-	w_window_resize(m->m_window, width, height);
+	m->m_width = w_window_get_width(map_window);
+	m->m_height = w_window_get_height(map_window);
+	m->m_number_of_cells = m->m_width * m->m_height;
+	m->m_window = map_window;
 
 	sranddev();
 
@@ -272,11 +271,11 @@ map_make(struct w_window *parent, unsigned int width, unsigned int height)
 	/*
 	 * Make sure there is no empty space at the border.
 	 */
-	for (y = 0; y < height; y++) {
+	for (y = 0; y < m->m_height; y++) {
 		w_window_putstr(m->m_window, 0, y, "##");
 		w_window_putstr(m->m_window, m->m_width - 2, y, "##");
 	}
-	for (x = 0; x < width; x++) {
+	for (x = 0; x < m->m_width; x++) {
 		w_window_putstr(m->m_window, x, 0, "#");
 		w_window_putstr(m->m_window, x, 1, "#");
 		w_window_putstr(m->m_window, x, m->m_height - 1, "#");
@@ -290,8 +289,27 @@ map_make(struct w_window *parent, unsigned int width, unsigned int height)
 	map_make_walls(m);
 	map_remove_thin_walls(m);
 
-	w = m->m_window;
-	free(m);
-
-	return (w);
+	return (m);
 }
+
+void
+map_find_empty_spot(struct map *m, unsigned int *xp, unsigned int *yp)
+{
+	unsigned int x, y;
+	char c;
+
+	for (;;) {
+		x = rand() % m->m_width;
+		y = rand() % m->m_height;
+
+		c = w_window_get(m->m_window, x, y);
+		assert(c != '\0');
+
+		if (c == ' ') {
+			*xp = x;
+			*yp = y;
+			break;
+		}
+	}
+}
+

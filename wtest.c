@@ -83,17 +83,22 @@ map_callback(struct w_window *w, int key)
 int
 main(void)
 {
-	struct w_window *root, *map, *character;
+	struct w_window *root, *map_window, *character;
+	struct map *map;
 	int map_edge_len = 300;
+	unsigned int x, y;
 
 	root = w_init();
+	map_window = w_window_new(root);
+	w_window_resize(map_window, map_edge_len, map_edge_len);
+	w_window_move(map_window, -map_edge_len / 3, -map_edge_len / 3);
 
-	map = map_make(root, map_edge_len, map_edge_len);
-	w_window_move(map, -map_edge_len / 3, -map_edge_len / 3);
+	map = map_make(map_window);
 
-	character = w_window_new(map);
+	character = w_window_new(map_window);
 	w_window_resize(character, 1, 1);
-	w_window_move(character, map_edge_len / 2, map_edge_len / 2);
+	map_find_empty_spot(map, &x, &y);
+	w_window_move(character, x, y);
 	w_window_move_cursor(character, 0, 0);
 	w_window_putstr(character, 0, 0, "@");
 
@@ -103,10 +108,10 @@ main(void)
 	w_window_bind(character, 'l', character_callback);
 	w_window_bind(character, '?', character_callback);
 
-	w_window_bind(map, KEY_LEFT, map_callback);
-	w_window_bind(map, KEY_RIGHT, map_callback);
-	w_window_bind(map, KEY_UP, map_callback);
-	w_window_bind(map, KEY_DOWN, map_callback);
+	w_window_bind(map_window, KEY_LEFT, map_callback);
+	w_window_bind(map_window, KEY_RIGHT, map_callback);
+	w_window_bind(map_window, KEY_UP, map_callback);
+	w_window_bind(map_window, KEY_DOWN, map_callback);
 
 	for (;;) {
 		w_redraw(root);

@@ -1,4 +1,3 @@
-- place the character in an empty space
 - restrict character movement
 - automatic map scrolling; don't scroll too far to show 'underneath' the map
 - handle terminal resizing

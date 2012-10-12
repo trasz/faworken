@@ -1,8 +1,9 @@
 #ifndef MAP_H
 #define	MAP_H
 
-struct w_window;
+struct map;
 
-struct w_window	*map_make(struct w_window *parent, unsigned int width, unsigned int height);
+struct map	*map_make(struct w_window *w);
+void		map_find_empty_spot(struct map *m, unsigned int *x, unsigned int *y);
 
 #endif /* !MAP_H */
