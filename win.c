@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "wieland.h"
+#include "win.h"
 
 struct w_binding {
 	TAILQ_ENTRY(w_binding)	wb_next;

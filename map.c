@@ -2,7 +2,7 @@
 #include <err.h>
 #include <stdlib.h>
 
-#include "wieland.h"
+#include "win.h"
 #include "map.h"
 
 struct map {
