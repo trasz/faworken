@@ -36,6 +36,26 @@ help(struct window *character)
 }
 
 static void
+copy_map_to_window(struct window *w)
+{
+	unsigned int x, y;
+	struct map *m;
+	char c, str[2];
+
+	m = window_uptr(w);
+
+	str[1] = '\0';
+
+	for (y = 0; y < map_get_height(m); y++) {
+		for (x = 0; x < map_get_width(m); x++) {
+			c = map_get(m, x, y);
+			str[0] = c;
+			window_putstr(w, x, y, str);
+		}
+	}
+}
+
+static void
 center_map(struct window *character)
 {
 	struct window *root, *map;
@@ -168,8 +188,9 @@ main(void)
 	map_window = window_new(root);
 	window_resize(map_window, map_edge_len, map_edge_len);
 
-	map = map_make(map_window);
+	map = map_new(map_edge_len, map_edge_len);
 	window_set_uptr(map_window, map);
+	copy_map_to_window(map_window);
 
 	actor = map_actor_new(map);
 	character = window_new(map_window);
