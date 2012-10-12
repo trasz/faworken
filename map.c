@@ -66,6 +66,7 @@ map_make_tunnels(struct map *m)
 		}
 
 		vx = vy = 0;
+		dir = rand() % 4;
 
 		for (;;) {
 			/*
@@ -147,6 +148,7 @@ map_make_walls(struct map *m)
 	char c, prevc;
 
 	for (x = 1; x < m->m_width - 1; x++) {
+		prevc = '#';
 		for (y = 1; y < m->m_height - 1; y++) {
 			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
@@ -156,6 +158,7 @@ map_make_walls(struct map *m)
 			prevc = c;
 			continue;
 		}
+		prevc = '#';
 		for (y = m->m_height - 1; y > 0; y--) {
 			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
@@ -168,6 +171,7 @@ map_make_walls(struct map *m)
 	}
 
 	for (y = 1; y < m->m_height - 1; y++) {
+		prevc = '#';
 		for (x = 1; x < m->m_width - 1; x++) {
 			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
@@ -177,6 +181,7 @@ map_make_walls(struct map *m)
 			prevc = c;
 			continue;
 		}
+		prevc = '#';
 		for (x = m->m_width - 1; x > 0; x--) {
 			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
