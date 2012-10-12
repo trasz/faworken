@@ -116,15 +116,19 @@ character_callback(struct w_window *w, int key)
 
 	switch (key) {
 	case 'h':
+	case KEY_LEFT:
 		w_window_move_by(w, -1, 0);
 		break;
 	case 'l':
+	case KEY_RIGHT:
 		w_window_move_by(w, 1, 0);
 		break;
 	case 'k':
+	case KEY_UP:
 		w_window_move_by(w, 0, -1);
 		break;
 	case 'j':
+	case KEY_DOWN:
 		w_window_move_by(w, 0, 1);
 		break;
 	case '?':
@@ -161,9 +165,13 @@ main(void)
 	center_map(character);
 
 	w_window_bind(character, 'j', character_callback);
+	w_window_bind(character, KEY_DOWN, character_callback);
 	w_window_bind(character, 'k', character_callback);
+	w_window_bind(character, KEY_UP, character_callback);
 	w_window_bind(character, 'h', character_callback);
+	w_window_bind(character, KEY_LEFT, character_callback);
 	w_window_bind(character, 'l', character_callback);
+	w_window_bind(character, KEY_RIGHT, character_callback);
 	w_window_bind(character, '?', character_callback);
 
 	for (;;) {
