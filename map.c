@@ -10,7 +10,7 @@ struct map {
 	unsigned int	m_height;
 	unsigned int	m_number_of_cells;
 	unsigned int	m_number_of_empty_cells;
-	struct w_window	*m_window;
+	struct window	*m_window;
 };
 
 static void
@@ -31,10 +31,10 @@ map_make_caves(struct map *m)
 
 		for (cy = y - ry; cy < y + ry; cy++) {
 			for (cx = x - rx; cx < x + rx; cx++) {
-				c = w_window_get(m->m_window, cx, cy);
+				c = window_get(m->m_window, cx, cy);
 				if (c == '#')
 					m->m_number_of_empty_cells++;
-				w_window_putstr(m->m_window, cx, cy, " ");
+				window_putstr(m->m_window, cx, cy, " ");
 			}
 		}
 	}
@@ -54,7 +54,7 @@ map_make_tunnels(struct map *m)
 		for (;;) {
 			x = rand() % m->m_width;
 			y = rand() % m->m_height;
-			c = w_window_get(m->m_window, x, y);
+			c = window_get(m->m_window, x, y);
 			if (c == ' ')
 				break;
 		}
@@ -121,14 +121,14 @@ map_make_tunnels(struct map *m)
 			/*
 			 * Perhaps end here, if it joins some other corridor.
 			 */
-			c = w_window_get(m->m_window, x, y);
+			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
 			if (c == ' ') {
 				if (rand() % 100 > 95)
 					break;
 			} else {
 				m->m_number_of_empty_cells++;
-				w_window_putstr(m->m_window, x, y, " ");
+				window_putstr(m->m_window, x, y, " ");
 			}
 		}
 	}
@@ -142,21 +142,21 @@ map_make_walls(struct map *m)
 
 	for (y = 1; y < m->m_height - 1; y++) {
 		for (x = 1; x < m->m_width - 1; x++) {
-			c = w_window_get(m->m_window, x, y);
+			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
 			if (c == ' ')
 				continue;
-			c2 = w_window_get(m->m_window, x - 1, y);
+			c2 = window_get(m->m_window, x - 1, y);
 			assert(c2 != '\0');
 			if (c2 == ' ') {
-				w_window_putstr(m->m_window, x, y, "|");
+				window_putstr(m->m_window, x, y, "|");
 				continue;
 			}
 
-			c2 = w_window_get(m->m_window, x + 1, y);
+			c2 = window_get(m->m_window, x + 1, y);
 			assert(c2 != '\0');
 			if (c2 == ' ') {
-				w_window_putstr(m->m_window, x, y, "|");
+				window_putstr(m->m_window, x, y, "|");
 				continue;
 			}
 		}
@@ -164,22 +164,22 @@ map_make_walls(struct map *m)
 
 	for (y = 1; y < m->m_height - 1; y++) {
 		for (x = 1; x < m->m_width - 1; x++) {
-			c = w_window_get(m->m_window, x, y);
+			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
 			if (c == ' ')
 				continue;
 
-			c2 = w_window_get(m->m_window, x, y - 1);
+			c2 = window_get(m->m_window, x, y - 1);
 			assert(c2 != '\0');
 			if (c2 == ' ') {
-				w_window_putstr(m->m_window, x, y, "-");
+				window_putstr(m->m_window, x, y, "-");
 				continue;
 			}
 
-			c2 = w_window_get(m->m_window, x, y + 1);
+			c2 = window_get(m->m_window, x, y + 1);
 			assert(c2 != '\0');
 			if (c2 == ' ') {
-				w_window_putstr(m->m_window, x, y, "-");
+				window_putstr(m->m_window, x, y, "-");
 				continue;
 			}
 		}
@@ -203,35 +203,35 @@ map_remove_thin_walls(struct map *m)
 
 	for (y = 1; y < m->m_height - 1; y++) {
 		for (x = 1; x < m->m_width - 1; x++) {
-			c = w_window_get(m->m_window, x, y);
+			c = window_get(m->m_window, x, y);
 			assert(c != '\0');
 			if (c == '|') {
-				c2 = w_window_get(m->m_window, x - 1, y);
+				c2 = window_get(m->m_window, x - 1, y);
 				assert(c2 != '\0');
 				if (c2 == '|') {
-					w_window_putstr(m->m_window, x, y, " ");
-					w_window_putstr(m->m_window, x - 1, y, " ");
+					window_putstr(m->m_window, x, y, " ");
+					window_putstr(m->m_window, x - 1, y, " ");
 					continue;
 				} else if (c2 == ' ') {
-					c2 = w_window_get(m->m_window, x + 1, y);
+					c2 = window_get(m->m_window, x + 1, y);
 					assert(c2 != '\0');
 					if (c2 == ' ') {
-						w_window_putstr(m->m_window, x, y, " ");
+						window_putstr(m->m_window, x, y, " ");
 						continue;
 					}
 				}
 			} else if (c == '-') {
-				c2 = w_window_get(m->m_window, x, y - 1);
+				c2 = window_get(m->m_window, x, y - 1);
 				assert(c2 != '\0');
 				if (c2 == '-') {
-					w_window_putstr(m->m_window, x, y, " ");
-					w_window_putstr(m->m_window, x, y - 1, " ");
+					window_putstr(m->m_window, x, y, " ");
+					window_putstr(m->m_window, x, y - 1, " ");
 					continue;
 				} else if (c2 == ' ') {
-					c2 = w_window_get(m->m_window, x, y + 1);
+					c2 = window_get(m->m_window, x, y + 1);
 					assert(c2 != '\0');
 					if (c2 == ' ') {
-						w_window_putstr(m->m_window, x, y, " ");
+						window_putstr(m->m_window, x, y, " ");
 						continue;
 					}
 				}
@@ -241,7 +241,7 @@ map_remove_thin_walls(struct map *m)
 }
 
 struct map *
-map_make(struct w_window *map_window)
+map_make(struct window *map_window)
 {
 	struct map *m;
 	unsigned int x, y;
@@ -249,8 +249,8 @@ map_make(struct w_window *map_window)
 	m = calloc(1, sizeof(*m));
 	if (m == NULL)
 		err(1, "calloc");
-	m->m_width = w_window_get_width(map_window);
-	m->m_height = w_window_get_height(map_window);
+	m->m_width = window_get_width(map_window);
+	m->m_height = window_get_height(map_window);
 	m->m_number_of_cells = m->m_width * m->m_height;
 	m->m_window = map_window;
 
@@ -261,7 +261,7 @@ map_make(struct w_window *map_window)
 	 */
 	for (y = 0; y < m->m_height; y++) {
 		for (x = 0; x < m->m_width; x++) {
-			w_window_putstr(m->m_window, x, y, "#");
+			window_putstr(m->m_window, x, y, "#");
 		}
 	}
 
@@ -272,14 +272,14 @@ map_make(struct w_window *map_window)
 	 * Make sure there is no empty space at the border.
 	 */
 	for (y = 0; y < m->m_height; y++) {
-		w_window_putstr(m->m_window, 0, y, "##");
-		w_window_putstr(m->m_window, m->m_width - 2, y, "##");
+		window_putstr(m->m_window, 0, y, "##");
+		window_putstr(m->m_window, m->m_width - 2, y, "##");
 	}
 	for (x = 0; x < m->m_width; x++) {
-		w_window_putstr(m->m_window, x, 0, "#");
-		w_window_putstr(m->m_window, x, 1, "#");
-		w_window_putstr(m->m_window, x, m->m_height - 1, "#");
-		w_window_putstr(m->m_window, x, m->m_height - 2, "#");
+		window_putstr(m->m_window, x, 0, "#");
+		window_putstr(m->m_window, x, 1, "#");
+		window_putstr(m->m_window, x, m->m_height - 1, "#");
+		window_putstr(m->m_window, x, m->m_height - 2, "#");
 	}
 
 	map_make_walls(m);
@@ -302,7 +302,7 @@ map_find_empty_spot(struct map *m, unsigned int *xp, unsigned int *yp)
 		x = rand() % m->m_width;
 		y = rand() % m->m_height;
 
-		c = w_window_get(m->m_window, x, y);
+		c = window_get(m->m_window, x, y);
 		assert(c != '\0');
 
 		if (c == ' ') {
