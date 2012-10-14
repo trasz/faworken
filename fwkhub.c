@@ -118,6 +118,8 @@ client_execute(struct client *c, char *cmd)
 		return;
 	}
 
+	fprintf(stderr, "'%s'\n", cmd);
+
 	name = strdup(cmd);
 	if (name == NULL)
 		err(1, "strdup");
@@ -193,6 +195,8 @@ action_whereami(struct client *c, char *cmd)
 	char *str;
 
 	asprintf(&str, "ok, %d %d\r\n", map_actor_get_x(c->c_actor), map_actor_get_y(c->c_actor));
+	if (str == NULL)
+		err(1, "asprintf");
 	client_send(c, str);
 	free(str);
 }
@@ -227,6 +231,8 @@ action_map_get_size(struct client *c, char *cmd)
 	char *str;
 
 	asprintf(&str, "ok, %d %d\r\n", map_get_width(map), map_get_height(map));
+	if (str == NULL)
+		err(1, "asprintf");
 	client_send(c, str);
 	free(str);
 }
@@ -253,7 +259,9 @@ action_map_get(struct client *c, char *cmd)
 	}
 	ch = map_get(map, x, y);
 	assert(ch != '\0');
-	asprintf(&str, "ok, %c\r\n", ch);
+	asprintf(&str, "ok, '%c'\r\n", ch);
+	if (str == NULL)
+		err(1, "asprintf");
 	client_send(c, str);
 	free(str);
 }

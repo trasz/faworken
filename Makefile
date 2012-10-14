@@ -1,7 +1,7 @@
 all: wtest fwkhub
 
-wtest: wtest.c window.c map.c
-	$(CC) -o wtest wtest.c window.c map.c -lcurses -ggdb -Wall
+wtest: wtest.c window.c map.c remote.c
+	$(CC) -o wtest wtest.c window.c map.c remote.c -lcurses -ggdb -Wall
 
 fwkhub: fwkhub.c map.c
 	$(CC) -o fwkhub fwkhub.c map.c remote.c -ggdb -Wall

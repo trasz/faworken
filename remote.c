@@ -115,3 +115,10 @@ remote_receive(struct remote *r)
 	 */
 	return (NULL);
 }
+
+bool
+remote_disconnected(struct remote *r)
+{
+
+	return (r->r_disconnected);
+}
