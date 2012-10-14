@@ -1,6 +1,11 @@
 - split code into to-be-client and to-be-server
 - network
 - bombs
+- named events
+- named properties
+
+Later:
+
 - handle terminal resizing
 - translucency
 - depth

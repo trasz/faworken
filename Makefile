@@ -1,7 +1,10 @@
-all: wtest
+all: wtest fwkhub
 
 wtest: wtest.c window.c map.c
-	$(CC) -o wtest *.c -lcurses -ggdb -Wall
+	$(CC) -o wtest wtest.c window.c map.c -lcurses -ggdb -Wall
+
+fwkhub: fwkhub.c map.c
+	$(CC) -o fwkhub fwkhub.c map.c -ggdb -Wall
 
 clean:
-	rm -f wtest *.o *.core
+	rm -rf wtest fwkhub *.o *.core *.dSYM

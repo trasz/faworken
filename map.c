@@ -19,7 +19,7 @@ struct actor {
 	unsigned int	a_y;
 };
 
-static void
+void
 map_set(struct map *m, unsigned int x, unsigned int y, char c)
 {
 

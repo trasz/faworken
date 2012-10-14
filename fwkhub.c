@@ -1,0 +1,427 @@
+#include <sys/types.h>
+#include <sys/queue.h>
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <assert.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "map.h"
+
+#define	FAWORKEN_PORT		1981
+
+struct client {
+	TAILQ_ENTRY(client)	c_next;
+	int			c_fd;
+	size_t			c_buffered;
+	size_t			c_buf_size;
+	char			*c_buf;
+	struct actor		*c_actor;
+};
+
+struct action {
+	TAILQ_ENTRY(action)	a_next;
+	const char		*a_name;
+	void			(*a_handler)(struct client *c, char *name);
+};
+
+static TAILQ_HEAD(, client)	clients;
+static TAILQ_HEAD(, action)	actions;
+static struct map		*map;
+
+static void
+action_add(const char *name, void (*handler)(struct client *c, char *name))
+{
+	struct action *a;
+
+	a = calloc(1, sizeof(*a));
+	if (a == NULL)
+		err(1, "calloc");
+
+	a->a_name = name;
+	a->a_handler = handler;
+	TAILQ_INSERT_TAIL(&actions, a, a_next);
+}
+
+static struct action *
+action_find(const char *name)
+{
+	struct action *a;
+
+	TAILQ_FOREACH(a, &actions, a_next) {
+		if (strcmp(name, a->a_name) == 0)
+			return (a);
+	}
+
+	return (NULL);
+}
+
+static void
+client_add(int fd)
+{
+	struct client *c;
+
+	c = calloc(1, sizeof(*c));
+	if (c == NULL)
+		err(1, "calloc");
+
+	c->c_buf_size = 1024;
+	c->c_buf = calloc(1, c->c_buf_size);
+	if (c->c_buf == NULL)
+		err(1, "calloc");
+
+	c->c_fd = fd;
+	TAILQ_INSERT_TAIL(&clients, c, c_next);
+
+	c->c_actor = map_actor_new(map);
+}
+
+static void
+client_remove(struct client *c)
+{
+
+	close(c->c_fd);
+	TAILQ_REMOVE(&clients, c, c_next);
+	free(c->c_buf);
+	free(c);
+}
+
+static struct client *
+client_find_by_fd(int fd)
+{
+	struct client *c;
+
+	TAILQ_FOREACH(c, &clients, c_next) {
+		if (c->c_fd == fd)
+			return (c);
+	}
+
+	return (NULL);
+}
+
+static void
+client_send(struct client *c, const char *msg)
+{
+	ssize_t len;
+
+	/*
+	 * XXX: Make it nonblocking.
+	 */
+
+	len = write(c->c_fd, msg, strlen(msg) + 1);
+	if (len < 0) {
+		warn("write");
+		client_remove(c);
+	}
+}
+
+static void
+client_execute(struct client *c, char *cmd)
+{
+	struct action *a;
+	char *name;
+
+	if (cmd[0] == '\0') {
+		/*
+		 * Empty command; just ignore.
+		 */
+		return;
+	}
+
+	name = strdup(cmd);
+	if (name == NULL)
+		err(1, "strdup");
+	name = strsep(&name, " ");
+	a = action_find(name);
+	free(name);
+	if (a == NULL) {
+		client_send(c, "sorry, unknown action\r\n");
+		return;
+	}
+
+	a->a_handler(c, cmd);
+}
+
+static void
+client_receive(struct client *c)
+{
+	ssize_t len;
+	int bytes, error, i, last_newline = -1;
+	char *cmd;
+
+	/*
+	 * Receive as much as we can without blocking.
+	 */
+	error = ioctl(c->c_fd, FIONREAD, &bytes);
+	if (error != 0)
+		err(1, "FIONREAD");
+
+	if (bytes == 0) {
+		fprintf(stderr, "client disconnected\n");
+		client_remove(c);
+		return;
+	}
+
+	if (bytes > c->c_buf_size - c->c_buffered)
+		bytes = c->c_buf_size - c->c_buffered;
+	if (bytes <= 0) {
+		fprintf(stderr, "client overflow\n");
+		client_remove(c);
+		return;
+	}
+
+	len = read(c->c_fd, c->c_buf + c->c_buffered, bytes);
+	if (len != bytes)
+		err(1, "short read\n");
+	c->c_buffered += len;
+
+	/*
+	 * Look for a newline.
+	 */
+	cmd = c->c_buf;
+	for (i = 0; i < c->c_buffered; i++) {
+		if (c->c_buf[i] != '\n' && c->c_buf[i] != '\r')
+			continue;
+
+		/*
+		 * Found a newline.  Terminate the string there
+		 * and parse the command.
+		 */
+		last_newline = i;
+		c->c_buf[i] = '\0';
+		client_execute(c, cmd);
+		cmd = c->c_buf + i + 1;
+	}
+
+	if (last_newline > 0) {
+		/*
+		 * Remove the executed commands from the buffer.  +1, because last_newline
+		 * was an offset, and here we're using it as length.
+		 */
+		last_newline++;
+		memmove(c->c_buf, c->c_buf + last_newline, c->c_buffered - last_newline);
+		c->c_buffered -= last_newline;
+	}
+
+	return;
+}
+
+static int
+listen_on(int port)
+{
+	struct sockaddr_in sin;
+	int sock, error;
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0)
+		err(1, "socket");
+
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(port);
+	sin.sin_addr.s_addr = INADDR_ANY;
+
+	error = bind(sock, (struct sockaddr *)&sin, sizeof(sin));
+	if (error != 0)
+		err(1, "bind");
+
+	error = listen(sock, 42);
+	if (error != 0)
+		err(1, "listen");
+
+	return (sock);
+}
+
+static int
+fd_add(int fd, fd_set *fdset, int nfds)
+{
+	FD_SET(fd, fdset);
+	if (fd > nfds)
+		nfds = fd;
+	return (nfds);
+}
+
+static void
+usage(void)
+{
+
+	printf("usage: fwkhub\n");
+	exit(0);
+}
+
+static void
+action_whereami(struct client *c, char *cmd)
+{
+	char *str;
+
+	asprintf(&str, "ok, %d %d\r\n", map_actor_get_x(c->c_actor), map_actor_get_y(c->c_actor));
+	client_send(c, str);
+	free(str);
+}
+
+static void
+action_move(struct client *c, char *cmd)
+{
+	int error;
+
+	if (strcmp(cmd, "north") == 0)
+		error = map_actor_move_by(c->c_actor, 0, -1);
+	else if (strcmp(cmd, "south") == 0)
+		error = map_actor_move_by(c->c_actor, 0, 1);
+	else if (strcmp(cmd, "west") == 0)
+		error = map_actor_move_by(c->c_actor, -1, 0);
+	else if (strcmp(cmd, "east") == 0)
+		error = map_actor_move_by(c->c_actor, 1, 0);
+	else
+		client_send(c, "sorry, no idea where's that\r\n");
+
+	if (error == 0)
+		client_send(c, "ok\r\n");
+	else
+		client_send(c, "sorry, can't go that way\r\n");
+}
+
+static void
+action_map_get_size(struct client *c, char *cmd)
+{
+	char *str;
+
+	asprintf(&str, "ok, %d %d\r\n", map_get_width(map), map_get_height(map));
+	client_send(c, str);
+	free(str);
+}
+
+static void
+action_map_get(struct client *c, char *cmd)
+{
+	unsigned int x, y;
+	int assigned;
+	char ch, *str;
+
+	assigned = sscanf(cmd, "map-get %d %d", &x, &y);
+	if (assigned != 2) {
+		client_send(c, "sorry, invalid usage; should be 'map-get x y'\r\n");
+		return;
+	}
+	if (x > map_get_width(map)) {
+		client_send(c, "sorry, too large x\r\n");
+		return;
+	}
+	if (y > map_get_height(map)) {
+		client_send(c, "sorry, too large y\r\n");
+		return;
+	}
+	ch = map_get(map, x, y);
+	assert(ch != '\0');
+	asprintf(&str, "ok, %c\r\n", ch);
+	client_send(c, str);
+	free(str);
+}
+
+static void
+action_map_set(struct client *c, char *cmd)
+{
+	unsigned int x, y;
+	int assigned;
+	char ch;
+
+	assigned = sscanf(cmd, "map-set %d %d %c", &x, &y, &ch);
+	if (assigned != 3) {
+		client_send(c, "sorry, invalid usage; should be 'map-set x y ch'\r\n");
+		return;
+	}
+	if (x > map_get_width(map)) {
+		client_send(c, "sorry, too large x\r\n");
+		return;
+	}
+	if (y > map_get_height(map)) {
+		client_send(c, "sorry, too large y\r\n");
+		return;
+	}
+	map_set(map, x, y, ch);
+	client_send(c, "ok\r\n");
+}
+
+static void
+action_bye(struct client *c, char *cmd)
+{
+
+	client_send(c, "ok, see you next time\r\n");
+	client_remove(c);
+}
+
+int
+main(int argc, char **argv)
+{
+	fd_set fdset;
+	int error, i, nfds, client_fd, listening_socket;
+	int map_edge_len = 300;
+	struct client *client;
+
+	if (argc != 1)
+		usage();
+
+	TAILQ_INIT(&clients);
+	TAILQ_INIT(&actions);
+
+	action_add("whereami", action_whereami);
+	action_add("north", action_move);
+	action_add("south", action_move);
+	action_add("east", action_move);
+	action_add("west", action_move);
+	action_add("map-get-size", action_map_get_size);
+	action_add("map-get", action_map_get);
+	action_add("map-set", action_map_set);
+	action_add("bye", action_bye);
+
+	map = map_new(map_edge_len, map_edge_len);
+
+	listening_socket = listen_on(FAWORKEN_PORT);
+
+#if 0
+	fprintf(stderr, "listening for clients on port %d\n", FAWORKEN_PORT);
+#endif
+
+	for (;;) {
+		FD_ZERO(&fdset);
+		nfds = 0;
+		nfds = fd_add(listening_socket, &fdset, nfds);
+		TAILQ_FOREACH(client, &clients, c_next)
+			nfds = fd_add(client->c_fd, &fdset, nfds);
+		error = select(nfds + 1, &fdset, NULL, NULL, NULL);
+		if (error <= 0)
+			err(1, "select");
+
+		if (FD_ISSET(listening_socket, &fdset)) {
+			client_fd = accept(listening_socket, NULL, 0);
+			if (client_fd < 0)
+				err(1, "accept");
+#if 0
+			fprintf(stderr, "fd %d: got new client\n", client_fd);
+#endif
+			client_add(client_fd);
+			continue;
+		}
+
+		for (i = 0; i < nfds + 1; i++) {
+			if (!FD_ISSET(i, &fdset))
+				continue;
+
+			client = client_find_by_fd(i);
+			if (client != NULL) {
+				client_receive(client);
+				break;
+			}
+			errx(1, "unknown fd %d", i);
+		}
+		if (i == nfds + 1)
+			errx(1, "fd not found");
+	}
+
+	return (0);
+}
