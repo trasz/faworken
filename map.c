@@ -276,6 +276,28 @@ map_remove_thin_walls(struct map *m)
 	}
 }
 
+static void
+map_make_border(struct map *m)
+{
+	unsigned int x, y;
+
+	/*
+	 * Make sure there is no empty space at the border.
+	 */
+	for (y = 0; y < m->m_height; y++) {
+		map_set(m, 0, y, '#');
+		map_set(m, 1, y, '#');
+		map_set(m, m->m_width - 1, y, '#');
+		map_set(m, m->m_width - 2, y, '#');
+	}
+	for (x = 0; x < m->m_width; x++) {
+		map_set(m, x, 0, '#');
+		map_set(m, x, 1, '#');
+		map_set(m, x, m->m_height - 1, '#');
+		map_set(m, x, m->m_height - 2, '#');
+	}
+}
+
 struct map *
 map_new(unsigned int w, unsigned int h)
 {
@@ -304,23 +326,7 @@ map_new(unsigned int w, unsigned int h)
 
 	map_make_caves(m);
 	map_make_tunnels(m);
-
-	/*
-	 * Make sure there is no empty space at the border.
-	 */
-	for (y = 0; y < m->m_height; y++) {
-		map_set(m, 0, y, '#');
-		map_set(m, 1, y, '#');
-		map_set(m, m->m_width - 1, y, '#');
-		map_set(m, m->m_width - 2, y, '#');
-	}
-	for (x = 0; x < m->m_width; x++) {
-		map_set(m, x, 0, '#');
-		map_set(m, x, 1, '#');
-		map_set(m, x, m->m_height - 1, '#');
-		map_set(m, x, m->m_height - 2, '#');
-	}
-
+	map_make_border(m);
 	map_remove_thin_walls(m);
 	map_make_walls(m);
 
