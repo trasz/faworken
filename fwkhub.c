@@ -210,8 +210,10 @@ action_move(struct client *c, char *cmd)
 		error = map_actor_move_by(c->c_actor, -1, 0);
 	else if (strcmp(cmd, "east") == 0)
 		error = map_actor_move_by(c->c_actor, 1, 0);
-	else
+	else {
 		client_send(c, "sorry, no idea where's that\r\n");
+		return;
+	}
 
 	if (error == 0)
 		client_send(c, "ok\r\n");

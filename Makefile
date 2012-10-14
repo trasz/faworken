@@ -7,4 +7,4 @@ fwkhub: fwkhub.c map.c
 	$(CC) -o fwkhub fwkhub.c map.c remote.c -ggdb -Wall
 
 clean:
-	rm -rf wtest fwkhub *.o *.core *.dSYM
+	rm -rf wtest fwkhub *.o *.core *.dSYM reports
