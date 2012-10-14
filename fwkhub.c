@@ -13,16 +13,15 @@
 #include <unistd.h>
 
 #include "map.h"
+#include "remote.h"
 
 #define	FAWORKEN_PORT		1981
 
 struct client {
 	TAILQ_ENTRY(client)	c_next;
-	int			c_fd;
-	size_t			c_buffered;
-	size_t			c_buf_size;
-	char			*c_buf;
+	struct remote		*c_remote;
 	struct actor		*c_actor;
+	int			c_fd;
 };
 
 struct action {
@@ -71,24 +70,18 @@ client_add(int fd)
 	if (c == NULL)
 		err(1, "calloc");
 
-	c->c_buf_size = 1024;
-	c->c_buf = calloc(1, c->c_buf_size);
-	if (c->c_buf == NULL)
-		err(1, "calloc");
-
 	c->c_fd = fd;
-	TAILQ_INSERT_TAIL(&clients, c, c_next);
-
+	c->c_remote = remote_new(fd);
 	c->c_actor = map_actor_new(map);
+	TAILQ_INSERT_TAIL(&clients, c, c_next);
 }
 
 static void
 client_remove(struct client *c)
 {
 
-	close(c->c_fd);
 	TAILQ_REMOVE(&clients, c, c_next);
-	free(c->c_buf);
+	remote_delete(c->c_remote);
 	free(c);
 }
 
@@ -108,17 +101,8 @@ client_find_by_fd(int fd)
 static void
 client_send(struct client *c, const char *msg)
 {
-	ssize_t len;
 
-	/*
-	 * XXX: Make it nonblocking.
-	 */
-
-	len = write(c->c_fd, msg, strlen(msg) + 1);
-	if (len < 0) {
-		warn("write");
-		client_remove(c);
-	}
+	remote_send(c->c_remote, msg);
 }
 
 static void
@@ -151,65 +135,14 @@ client_execute(struct client *c, char *cmd)
 static void
 client_receive(struct client *c)
 {
-	ssize_t len;
-	int bytes, error, i, last_newline = -1;
 	char *cmd;
 
-	/*
-	 * Receive as much as we can without blocking.
-	 */
-	error = ioctl(c->c_fd, FIONREAD, &bytes);
-	if (error != 0)
-		err(1, "FIONREAD");
-
-	if (bytes == 0) {
-		fprintf(stderr, "client disconnected\n");
-		client_remove(c);
-		return;
-	}
-
-	if (bytes > c->c_buf_size - c->c_buffered)
-		bytes = c->c_buf_size - c->c_buffered;
-	if (bytes <= 0) {
-		fprintf(stderr, "client overflow\n");
-		client_remove(c);
-		return;
-	}
-
-	len = read(c->c_fd, c->c_buf + c->c_buffered, bytes);
-	if (len != bytes)
-		err(1, "short read\n");
-	c->c_buffered += len;
-
-	/*
-	 * Look for a newline.
-	 */
-	cmd = c->c_buf;
-	for (i = 0; i < c->c_buffered; i++) {
-		if (c->c_buf[i] != '\n' && c->c_buf[i] != '\r')
-			continue;
-
-		/*
-		 * Found a newline.  Terminate the string there
-		 * and parse the command.
-		 */
-		last_newline = i;
-		c->c_buf[i] = '\0';
+	for (;;) {
+		cmd = remote_receive(c->c_remote);
+		if (cmd == NULL)
+			break;
 		client_execute(c, cmd);
-		cmd = c->c_buf + i + 1;
 	}
-
-	if (last_newline > 0) {
-		/*
-		 * Remove the executed commands from the buffer.  +1, because last_newline
-		 * was an offset, and here we're using it as length.
-		 */
-		last_newline++;
-		memmove(c->c_buf, c->c_buf + last_newline, c->c_buffered - last_newline);
-		c->c_buffered -= last_newline;
-	}
-
-	return;
 }
 
 static int

@@ -1,6 +1,8 @@
 #ifndef REMOTE_H
 #define	REMOTE_H
 
+#include <stdbool.h>
+
 struct remote;
 
 struct remote	*remote_new(int fd);
