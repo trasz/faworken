@@ -105,7 +105,7 @@ client_send(struct client *c, const char *msg)
 	remote_send(c->c_remote, msg);
 }
 
-static void
+static int
 client_execute(struct client *c, char *cmd)
 {
 	struct action *a;
@@ -115,7 +115,7 @@ client_execute(struct client *c, char *cmd)
 		/*
 		 * Empty command; just ignore.
 		 */
-		return;
+		return (0);
 	}
 
 	fprintf(stderr, "'%s'\n", cmd);
@@ -127,23 +127,37 @@ client_execute(struct client *c, char *cmd)
 	a = action_find(name);
 	free(name);
 	if (a == NULL) {
+		/*
+		 * Not a real action, since we need to exit the loop
+		 * when this happens.
+		 */
+		if (strcmp(name, "bye") == 0) {
+			client_send(c, "ok, see you next time\r\n");
+			client_remove(c);
+			return (1);
+		}
+
 		client_send(c, "sorry, unknown action\r\n");
-		return;
+		return (0);
 	}
 
 	a->a_handler(c, cmd);
+	return (0);
 }
 
 static void
 client_receive(struct client *c)
 {
 	char *cmd;
+	int error;
 
 	for (;;) {
 		cmd = remote_receive(c->c_remote);
 		if (cmd == NULL)
 			break;
-		client_execute(c, cmd);
+		error = client_execute(c, cmd);
+		if (error != 0)
+			break;
 	}
 }
 
@@ -290,14 +304,6 @@ action_map_set(struct client *c, char *cmd)
 	client_send(c, "ok\r\n");
 }
 
-static void
-action_bye(struct client *c, char *cmd)
-{
-
-	client_send(c, "ok, see you next time\r\n");
-	client_remove(c);
-}
-
 int
 main(int argc, char **argv)
 {
@@ -305,6 +311,7 @@ main(int argc, char **argv)
 	int error, i, nfds, client_fd, listening_socket;
 	int map_edge_len = 300;
 	struct client *client;
+	char buf[1];
 
 	if (argc != 1)
 		usage();
@@ -320,7 +327,6 @@ main(int argc, char **argv)
 	action_add("map-get-size", action_map_get_size);
 	action_add("map-get", action_map_get);
 	action_add("map-set", action_map_set);
-	action_add("bye", action_bye);
 
 	map = map_new(map_edge_len, map_edge_len);
 
@@ -357,6 +363,13 @@ main(int argc, char **argv)
 
 			client = client_find_by_fd(i);
 			if (client != NULL) {
+				/*
+				 * Check if the socket is still connected.
+				 */
+				if (recv(i, buf, sizeof(buf), MSG_DONTWAIT | MSG_PEEK) <= 0) {
+					client_remove(client);
+					break;
+				}
 				client_receive(client);
 				break;
 			}
