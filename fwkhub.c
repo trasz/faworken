@@ -118,7 +118,9 @@ client_execute(struct client *c, char *cmd)
 		return (0);
 	}
 
+#if 0
 	fprintf(stderr, "'%s'\n", cmd);
+#endif
 
 	name = strdup(cmd);
 	if (name == NULL)
@@ -152,7 +154,7 @@ client_receive(struct client *c)
 	int error;
 
 	for (;;) {
-		cmd = remote_receive(c->c_remote);
+		cmd = remote_receive_async(c->c_remote);
 		if (cmd == NULL)
 			break;
 		error = client_execute(c, cmd);

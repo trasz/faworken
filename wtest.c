@@ -22,13 +22,9 @@ server_map_get_size(unsigned int *width, unsigned int *height)
 
 	remote_send(hub, "map-get-size\r\n");
 
-	for (;;) {
-		if (remote_disconnected(hub))
-			errx(1, "lost connection to the hub");
-		reply = remote_receive(hub);
-		if (reply != NULL)
-			break;
-	}
+	reply = remote_receive(hub);
+	if (reply == NULL)
+		errx(1, "lost connection to the hub during map-get-size");
 
 	assigned = sscanf(reply, "ok, %d %d", width, height);
 	if (assigned != 2)
@@ -48,13 +44,9 @@ server_map_get(unsigned int x, unsigned int y)
 	remote_send(hub, query);
 	free(query);
 
-	for (;;) {
-		if (remote_disconnected(hub))
-			errx(1, "lost connection to the hub");
-		reply = remote_receive(hub);
-		if (reply != NULL)
-			break;
-	}
+	reply = remote_receive(hub);
+	if (reply == NULL)
+		errx(1, "lost connection to the hub during map-get");
 
 	assigned = sscanf(reply, "ok, '%c'", &ch);
 	if (assigned != 1)
@@ -74,13 +66,9 @@ server_move(const char *dir)
 	remote_send(hub, query);
 	free(query);
 
-	for (;;) {
-		if (remote_disconnected(hub))
-			errx(1, "lost connection to the hub");
-		reply = remote_receive(hub);
-		if (reply != NULL)
-			break;
-	}
+	reply = remote_receive(hub);
+	if (reply == NULL)
+		errx(1, "lost connection to the hub during move");
 
 	if (strncmp(reply, "ok", strlen("ok")) == 0)
 		return (0);
@@ -95,13 +83,9 @@ server_whereami(unsigned int *x, unsigned int *y)
 
 	remote_send(hub, "whereami\r\n");
 
-	for (;;) {
-		if (remote_disconnected(hub))
-			errx(1, "lost connection to the hub");
-		reply = remote_receive(hub);
-		if (reply != NULL)
-			break;
-	}
+	reply = remote_receive(hub);
+	if (reply == NULL)
+		errx(1, "lost connection to the hub during whereami");
 
 	assigned = sscanf(reply, "ok, %d %d", x, y);
 	if (assigned != 2)

@@ -1,5 +1,6 @@
-- split code into to-be-client and to-be-server
-- network
+- optimize map loading
+- multiple actors
+- highlight the @
 - bombs
 - named events
 - named properties
