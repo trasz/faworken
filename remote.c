@@ -150,7 +150,9 @@ remote_receive(struct remote *r)
 		 */
 		for (;;) {
 			str = remote_receive_internal(r);
-			if (str != NULL && str[0] == '\0')
+			if (str == NULL)
+				break;
+			if (str[0] == '\0')
 				continue;
 			break;
 		}
@@ -162,7 +164,14 @@ remote_receive(struct remote *r)
 char *
 remote_receive_async(struct remote *r)
 {
+	char *str;
 
-	return (remote_receive_internal(r));
+	for (;;) {
+		str = remote_receive_internal(r);
+		if (str == NULL)
+			return (str);
+		if (str[0] == '\0')
+			continue;
+		return (str);
+	}
 }
-

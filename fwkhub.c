@@ -111,13 +111,6 @@ client_execute(struct client *c, char *cmd)
 	struct action *a;
 	char *name;
 
-	if (cmd[0] == '\0') {
-		/*
-		 * Empty command; just ignore.
-		 */
-		return (0);
-	}
-
 #if 0
 	fprintf(stderr, "'%s'\n", cmd);
 #endif
