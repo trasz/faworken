@@ -31,6 +31,7 @@ server_map_get_size(unsigned int *width, unsigned int *height)
 		errx(1, "invalid reply to map-get-size: %s", reply);
 }
 
+#if 0
 static char
 server_map_get(unsigned int x, unsigned int y)
 {
@@ -53,6 +54,28 @@ server_map_get(unsigned int x, unsigned int y)
 		errx(1, "invalid reply to map-get: %s", reply);
 
 	return (ch);
+}
+#endif
+
+static const char *
+server_map_get_line(unsigned int y)
+{
+	char *query, *reply;
+
+	asprintf(&query, "map-get-line %d\r\n", y);
+	if (query == NULL)
+		err(1, "asprintf");
+	remote_send(hub, query);
+	free(query);
+
+	reply = remote_receive(hub);
+	if (reply == NULL)
+		errx(1, "lost connection to the hub during map-get-line");
+
+	if (strncmp(reply, "ok, ", strlen("ok, ")) != 0)
+		errx(1, "invalid reply to map-get-line: %s", reply);
+
+	return (reply + strlen("ok, "));
 }
 
 static int
@@ -96,21 +119,22 @@ static struct window *
 prepare_map_window(struct window *root)
 {
 	struct window *w;
-	unsigned int x, y, width, height;
-	char c, str[2];
+	unsigned int y, width, height;
+	const char *line;
 
 	w = window_new(root);
 	server_map_get_size(&width, &height);
 	window_resize(w, width, height);
 
-	str[1] = '\0';
+	line = calloc(1, width + 1);
+	if (line == NULL)
+		err(1, "calloc");
 
 	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++) {
-			c = server_map_get(x, y);
-			str[0] = c;
-			window_putstr(w, x, y, str);
-		}
+		line = server_map_get_line(y);
+		if (strlen(line) != width)
+			errx(1, "invalid map line length; is %zd, should be %d", strlen(line), width);
+		window_putstr(w, 0, y, line);
 	}
 
 	return (w);

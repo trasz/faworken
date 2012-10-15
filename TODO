@@ -1,4 +1,4 @@
-- optimize map loading
+- rewrite remote_send to be printf-like
 - multiple actors
 - highlight the @
 - bombs

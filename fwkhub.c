@@ -299,6 +299,36 @@ action_map_set(struct client *c, char *cmd)
 	client_send(c, "ok\r\n");
 }
 
+static void
+action_map_get_line(struct client *c, char *cmd)
+{
+	unsigned int x, y, width;
+	int assigned;
+	char *str, *line;
+
+	assigned = sscanf(cmd, "map-get-line %d", &y);
+	if (assigned != 1) {
+		client_send(c, "sorry, invalid usage; should be 'map-get-line y'\r\n");
+		return;
+	}
+	if (y > map_get_height(map)) {
+		client_send(c, "sorry, too large y\r\n");
+		return;
+	}
+	width = map_get_width(map);
+	line = calloc(1, width + 1);
+	if (line == NULL)
+		err(1, "calloc");
+	for (x = 0; x < width; x++)
+		line[x] = map_get(map, x, y);
+	asprintf(&str, "ok, %s\r\n", line);
+	free(line);
+	if (str == NULL)
+		err(1, "asprintf");
+	client_send(c, str);
+	free(str);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -321,6 +351,7 @@ main(int argc, char **argv)
 	action_add("west", action_move);
 	action_add("map-get-size", action_map_get_size);
 	action_add("map-get", action_map_get);
+	action_add("map-get-line", action_map_get_line);
 	action_add("map-set", action_map_set);
 
 	map = map_new(map_edge_len, map_edge_len);
