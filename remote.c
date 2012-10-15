@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <err.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,17 +52,25 @@ remote_delete(struct remote *r)
 }
 
 void
-remote_send(struct remote *r, const char *msg)
+remote_send(struct remote *r, const char *fmt, ...)
 {
+	va_list args;
+	char *msg;
+	int msglen;
 	ssize_t len;
 
 	/*
 	 * XXX: Make it nonblocking.
 	 */
-
-	len = write(r->r_fd, msg, strlen(msg) + 1);
+	va_start(args, fmt);
+	msglen = vasprintf(&msg, fmt, args);
+	va_end(args);
+	if (msglen <= 0)
+		err(1, "vasprintf");
+	len = write(r->r_fd, msg, msglen + 1);
 	if (len < 0)
 		warn("write");
+	free(msg);
 }
 
 char *

@@ -98,13 +98,6 @@ client_find_by_fd(int fd)
 	return (NULL);
 }
 
-static void
-client_send(struct client *c, const char *msg)
-{
-
-	remote_send(c->c_remote, msg);
-}
-
 static int
 client_execute(struct client *c, char *cmd)
 {
@@ -127,12 +120,12 @@ client_execute(struct client *c, char *cmd)
 		 * when this happens.
 		 */
 		if (strcmp(name, "bye") == 0) {
-			client_send(c, "ok, see you next time\r\n");
+			remote_send(c->c_remote, "ok, see you next time\r\n");
 			client_remove(c);
 			return (1);
 		}
 
-		client_send(c, "sorry, unknown action\r\n");
+		remote_send(c->c_remote, "sorry, unknown action\r\n");
 		return (0);
 	}
 
@@ -201,13 +194,8 @@ usage(void)
 static void
 action_whereami(struct client *c, char *cmd)
 {
-	char *str;
 
-	asprintf(&str, "ok, %d %d\r\n", map_actor_get_x(c->c_actor), map_actor_get_y(c->c_actor));
-	if (str == NULL)
-		err(1, "asprintf");
-	client_send(c, str);
-	free(str);
+	remote_send(c->c_remote, "ok, %d %d\r\n", map_actor_get_x(c->c_actor), map_actor_get_y(c->c_actor));
 }
 
 static void
@@ -224,26 +212,21 @@ action_move(struct client *c, char *cmd)
 	else if (strcmp(cmd, "east") == 0)
 		error = map_actor_move_by(c->c_actor, 1, 0);
 	else {
-		client_send(c, "sorry, no idea where's that\r\n");
+		remote_send(c->c_remote, "sorry, no idea where's that\r\n");
 		return;
 	}
 
 	if (error == 0)
-		client_send(c, "ok\r\n");
+		remote_send(c->c_remote, "ok\r\n");
 	else
-		client_send(c, "sorry, can't go that way\r\n");
+		remote_send(c->c_remote, "sorry, can't go that way\r\n");
 }
 
 static void
 action_map_get_size(struct client *c, char *cmd)
 {
-	char *str;
 
-	asprintf(&str, "ok, %d %d\r\n", map_get_width(map), map_get_height(map));
-	if (str == NULL)
-		err(1, "asprintf");
-	client_send(c, str);
-	free(str);
+	remote_send(c->c_remote, "ok, %d %d\r\n", map_get_width(map), map_get_height(map));
 }
 
 static void
@@ -251,28 +234,24 @@ action_map_get(struct client *c, char *cmd)
 {
 	unsigned int x, y;
 	int assigned;
-	char ch, *str;
+	char ch;
 
 	assigned = sscanf(cmd, "map-get %d %d", &x, &y);
 	if (assigned != 2) {
-		client_send(c, "sorry, invalid usage; should be 'map-get x y'\r\n");
+		remote_send(c->c_remote, "sorry, invalid usage; should be 'map-get x y'\r\n");
 		return;
 	}
 	if (x > map_get_width(map)) {
-		client_send(c, "sorry, too large x\r\n");
+		remote_send(c->c_remote, "sorry, too large x\r\n");
 		return;
 	}
 	if (y > map_get_height(map)) {
-		client_send(c, "sorry, too large y\r\n");
+		remote_send(c->c_remote, "sorry, too large y\r\n");
 		return;
 	}
 	ch = map_get(map, x, y);
 	assert(ch != '\0');
-	asprintf(&str, "ok, '%c'\r\n", ch);
-	if (str == NULL)
-		err(1, "asprintf");
-	client_send(c, str);
-	free(str);
+	remote_send(c->c_remote, "ok, '%c'\r\n", ch);
 }
 
 static void
@@ -284,19 +263,19 @@ action_map_set(struct client *c, char *cmd)
 
 	assigned = sscanf(cmd, "map-set %d %d %c", &x, &y, &ch);
 	if (assigned != 3) {
-		client_send(c, "sorry, invalid usage; should be 'map-set x y ch'\r\n");
+		remote_send(c->c_remote, "sorry, invalid usage; should be 'map-set x y ch'\r\n");
 		return;
 	}
 	if (x > map_get_width(map)) {
-		client_send(c, "sorry, too large x\r\n");
+		remote_send(c->c_remote, "sorry, too large x\r\n");
 		return;
 	}
 	if (y > map_get_height(map)) {
-		client_send(c, "sorry, too large y\r\n");
+		remote_send(c->c_remote, "sorry, too large y\r\n");
 		return;
 	}
 	map_set(map, x, y, ch);
-	client_send(c, "ok\r\n");
+	remote_send(c->c_remote, "ok\r\n");
 }
 
 static void
@@ -304,15 +283,15 @@ action_map_get_line(struct client *c, char *cmd)
 {
 	unsigned int x, y, width;
 	int assigned;
-	char *str, *line;
+	char *line;
 
 	assigned = sscanf(cmd, "map-get-line %d", &y);
 	if (assigned != 1) {
-		client_send(c, "sorry, invalid usage; should be 'map-get-line y'\r\n");
+		remote_send(c->c_remote, "sorry, invalid usage; should be 'map-get-line y'\r\n");
 		return;
 	}
 	if (y > map_get_height(map)) {
-		client_send(c, "sorry, too large y\r\n");
+		remote_send(c->c_remote, "sorry, too large y\r\n");
 		return;
 	}
 	width = map_get_width(map);
@@ -321,12 +300,8 @@ action_map_get_line(struct client *c, char *cmd)
 		err(1, "calloc");
 	for (x = 0; x < width; x++)
 		line[x] = map_get(map, x, y);
-	asprintf(&str, "ok, %s\r\n", line);
+	remote_send(c->c_remote, "ok, %s\r\n", line);
 	free(line);
-	if (str == NULL)
-		err(1, "asprintf");
-	client_send(c, str);
-	free(str);
 }
 
 int

@@ -35,15 +35,11 @@ server_map_get_size(unsigned int *width, unsigned int *height)
 static char
 server_map_get(unsigned int x, unsigned int y)
 {
-	char *query, *reply;
+	char *reply;
 	int assigned;
 	char ch;
 
-	asprintf(&query, "map-get %d %d\r\n", x, y);
-	if (query == NULL)
-		err(1, "asprintf");
-	remote_send(hub, query);
-	free(query);
+	remote_send(hub, "map-get %d %d\r\n", x, y);
 
 	reply = remote_receive(hub);
 	if (reply == NULL)
@@ -60,13 +56,9 @@ server_map_get(unsigned int x, unsigned int y)
 static const char *
 server_map_get_line(unsigned int y)
 {
-	char *query, *reply;
+	char *reply;
 
-	asprintf(&query, "map-get-line %d\r\n", y);
-	if (query == NULL)
-		err(1, "asprintf");
-	remote_send(hub, query);
-	free(query);
+	remote_send(hub, "map-get-line %d\r\n", y);
 
 	reply = remote_receive(hub);
 	if (reply == NULL)
@@ -81,13 +73,9 @@ server_map_get_line(unsigned int y)
 static int
 server_move(const char *dir)
 {
-	char *query, *reply;
+	char *reply;
 
-	asprintf(&query, "%s\r\n", dir);
-	if (query == NULL)
-		err(1, "asprintf");
-	remote_send(hub, query);
-	free(query);
+	remote_send(hub, "%s\r\n", dir);
 
 	reply = remote_receive(hub);
 	if (reply == NULL)

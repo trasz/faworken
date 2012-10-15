@@ -1,7 +1,9 @@
-- rewrite remote_send to be printf-like
 - multiple actors
 - highlight the @
 - bombs
+- chat
+- containers
+- inventory
 - named events
 - named properties
 
