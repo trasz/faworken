@@ -15,7 +15,7 @@ struct remote;
 
 struct expect {
 	TAILQ_ENTRY(expect)	e_next;
-	void 			(*e_callback)(struct remote *r, char *str, char **uptr);
+	int 			(*e_callback)(struct remote *r, char *str, char **uptr);
 	void			*e_uptr;
 	char			*e_word;
 };
@@ -58,6 +58,12 @@ remote_new(int fd)
 void
 remote_delete(struct remote *r)
 {
+	struct expect *e, *etmp;
+
+	TAILQ_FOREACH_SAFE(e, &r->r_expects, e_next, etmp) {
+		free(e->e_word);
+		free(e);
+	}
 
 	close(r->r_fd);
 	free(r->r_buf);
@@ -183,7 +189,7 @@ remote_receive(struct remote *r)
 	}
 }
 
-char *
+static char *
 remote_receive_async(struct remote *r)
 {
 	char *str;
@@ -199,7 +205,7 @@ remote_receive_async(struct remote *r)
 }
 
 void
-remote_expect(struct remote *r, const char *word, void (*callback)(struct remote *r, char *str, char **uptr), char **uptr)
+remote_expect(struct remote *r, const char *word, int (*callback)(struct remote *r, char *str, char **uptr), char **uptr)
 {
 	struct expect *e;
 
@@ -234,6 +240,7 @@ remote_process_internal(struct remote *r, bool sync)
 	struct expect *e, *etmp;
 	char **uptr;
 	void *callback;
+	int remove;
 
 	if (sync)
 		cmd = remote_receive(r);
@@ -249,27 +256,43 @@ remote_process_internal(struct remote *r, bool sync)
 	word = strdup(cmd);
 	if (word == NULL)
 		err(1, "strdup");
-	word = strsep(&word, " ,");
+	word = strsep(&word, ", ");
 	e = expect_find(r, word);
 	free(word);
-	if (e == NULL)
-		errx(1, "received unexpected line '%s'\n", cmd);
-	e->e_callback(r, cmd, e->e_uptr);
+	if (e == NULL) {
+		/*
+		 * No matching expect.  Search for the default one,
+		 * the "" (empty string).
+		 */
+		e = expect_find(r, "");
+		if (e == NULL)
+			errx(1, "received unexpected line '%s'\n", cmd);
+	}
+	remove = e->e_callback(r, cmd, e->e_uptr);
 
 	/*
-	 * Remove the expect - and not only the one we've just called,
-	 * but also others with the same uptr.  This is so that when caller
-	 * expects both "ok" and "error", both get removed.
+	 * XXX: Because of the way we do this, it's impossible for the callback
+	 *      to readd itself.  I mean, sure it can readd itself, but it would
+	 *      get removed here anyway.
 	 */
-	uptr = e->e_uptr;
-	callback = e->e_callback;
-	TAILQ_REMOVE(&r->r_expects, e, e_next);
-	free(e);
-	TAILQ_FOREACH_SAFE(e, &r->r_expects, e_next, etmp) {
-		if (e->e_uptr != uptr || e->e_callback != callback)
-			continue;
+	if (remove) {
+		/*
+		 * Remove the expect - and not only the one we've just called,
+		 * but also others with the same uptr.  This is so that when caller
+		 * expects both "ok" and "error", both get removed.
+		 */
+		uptr = e->e_uptr;
+		callback = e->e_callback;
 		TAILQ_REMOVE(&r->r_expects, e, e_next);
+		free(e->e_word);
 		free(e);
+		TAILQ_FOREACH_SAFE(e, &r->r_expects, e_next, etmp) {
+			if (e->e_uptr != uptr || e->e_callback != callback)
+				continue;
+			TAILQ_REMOVE(&r->r_expects, e, e_next);
+			free(e->e_word);
+			free(e);
+		}
 	}
 }
 
@@ -283,6 +306,8 @@ remote_process_sync(struct remote *r)
 void
 remote_process(struct remote *r)
 {
-
+	/*
+	 * XXX: Deal with all the commands, not just one.
+	 */
 	remote_process_internal(r, false);
 }

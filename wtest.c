@@ -15,7 +15,7 @@
 
 struct remote		*hub;
 
-static void
+static int
 server_callback(struct remote *r, char *str, char **uptr)
 {
 	char *reply;
@@ -24,6 +24,11 @@ server_callback(struct remote *r, char *str, char **uptr)
 	if (reply == NULL)
 		err(1, "strdup");
 	*uptr = reply;
+
+	/*
+	 * Return 1, so that the callback gets removed.
+	 */
+	return (1);
 }
 
 static void
