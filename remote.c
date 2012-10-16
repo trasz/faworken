@@ -1,4 +1,5 @@
 #include <sys/ioctl.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -10,12 +11,22 @@
 #include <string.h>
 #include <unistd.h>
 
+struct remote;
+
+struct expect {
+	TAILQ_ENTRY(expect)	e_next;
+	void 			(*e_callback)(struct remote *r, char *str, char **uptr);
+	void			*e_uptr;
+	char			*e_word;
+};
+
 struct remote {
 	int			r_fd;
 	size_t			r_returned;
 	size_t			r_buffered;
 	size_t			r_buf_size;
 	char			*r_buf;
+	TAILQ_HEAD(, expect)	r_expects; /* sic */
 };
 
 struct remote *
@@ -33,6 +44,8 @@ remote_new(int fd)
 	if (r->r_buf == NULL)
 		err(1, "calloc");
 	r->r_fd = fd;
+
+	TAILQ_INIT(&r->r_expects);
 
 	flag = 1;
 	error = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)); 
@@ -142,7 +155,7 @@ remote_receive_internal(struct remote *r)
 	return (NULL);
 }
 
-char *
+static char *
 remote_receive(struct remote *r)
 {
 	char buf[1], *str;
@@ -183,4 +196,93 @@ remote_receive_async(struct remote *r)
 			continue;
 		return (str);
 	}
+}
+
+void
+remote_expect(struct remote *r, const char *word, void (*callback)(struct remote *r, char *str, char **uptr), char **uptr)
+{
+	struct expect *e;
+
+	e = calloc(1, sizeof(*e));
+	if (e == NULL)
+		err(1, "calloc");
+	e->e_callback = callback;
+	e->e_uptr = uptr;
+	e->e_word = strdup(word);
+	if (e->e_word == NULL)
+		err(1, "strdup");
+	TAILQ_INSERT_TAIL(&r->r_expects, e, e_next);
+}
+
+static struct expect *
+expect_find(struct remote *r, const char *word)
+{
+	struct expect *e;
+
+	TAILQ_FOREACH(e, &r->r_expects, e_next) {
+		if (strcmp(word, e->e_word) == 0)
+			return (e);
+	}
+
+	return (NULL);
+}
+
+void
+remote_process_internal(struct remote *r, bool sync)
+{
+	char *cmd, *word;
+	struct expect *e, *etmp;
+	char **uptr;
+	void *callback;
+
+	if (sync)
+		cmd = remote_receive(r);
+	else
+		cmd = remote_receive_async(r);
+	if (cmd == NULL)
+		return;
+
+	/*
+	 * Isolate the first word, find the matching expect,
+	 * and call its callback.
+	 */
+	word = strdup(cmd);
+	if (word == NULL)
+		err(1, "strdup");
+	word = strsep(&word, " ,");
+	e = expect_find(r, word);
+	free(word);
+	if (e == NULL)
+		errx(1, "received unexpected line '%s'\n", cmd);
+	e->e_callback(r, cmd, e->e_uptr);
+
+	/*
+	 * Remove the expect - and not only the one we've just called,
+	 * but also others with the same uptr.  This is so that when caller
+	 * expects both "ok" and "error", both get removed.
+	 */
+	uptr = e->e_uptr;
+	callback = e->e_callback;
+	TAILQ_REMOVE(&r->r_expects, e, e_next);
+	free(e);
+	TAILQ_FOREACH_SAFE(e, &r->r_expects, e_next, etmp) {
+		if (e->e_uptr != uptr || e->e_callback != callback)
+			continue;
+		TAILQ_REMOVE(&r->r_expects, e, e_next);
+		free(e);
+	}
+}
+
+void
+remote_process_sync(struct remote *r)
+{
+
+	remote_process_internal(r, true);
+}
+
+void
+remote_process(struct remote *r)
+{
+
+	remote_process_internal(r, false);
 }

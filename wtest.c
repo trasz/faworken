@@ -1,5 +1,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 #include <assert.h>
 #include <curses.h>
 #include <err.h>
@@ -15,57 +16,42 @@
 struct remote		*hub;
 
 static void
-server_map_get_size(unsigned int *width, unsigned int *height)
+server_callback(struct remote *r, char *str, char **uptr)
 {
 	char *reply;
+
+	reply = strdup(str);
+	if (reply == NULL)
+		err(1, "strdup");
+	*uptr = reply;
+}
+
+static void
+server_map_get_size(unsigned int *width, unsigned int *height)
+{
+	char *reply = NULL;
 	int assigned;
 
+	remote_expect(hub, "ok", server_callback, &reply);
 	remote_send(hub, "map-get-size\r\n");
-
-	reply = remote_receive(hub);
-	if (reply == NULL)
-		errx(1, "lost connection to the hub during map-get-size");
+	while (reply == NULL)
+		remote_process_sync(hub);
 
 	assigned = sscanf(reply, "ok, %d %d", width, height);
 	if (assigned != 2)
 		errx(1, "invalid reply to map-get-size: %s", reply);
+	free(reply);
 }
 
-#if 0
-static char
-server_map_get(unsigned int x, unsigned int y)
-{
-	char *reply;
-	int assigned;
-	char ch;
-
-	remote_send(hub, "map-get %d %d\r\n", x, y);
-
-	reply = remote_receive(hub);
-	if (reply == NULL)
-		errx(1, "lost connection to the hub during map-get");
-
-	assigned = sscanf(reply, "ok, '%c'", &ch);
-	if (assigned != 1)
-		errx(1, "invalid reply to map-get: %s", reply);
-
-	return (ch);
-}
-#endif
-
-static const char *
+static char *
 server_map_get_line(unsigned int y)
 {
-	char *reply;
+	char *reply = NULL;
 
+	remote_expect(hub, "ok", server_callback, &reply);
 	remote_send(hub, "map-get-line %d\r\n", y);
-
-	reply = remote_receive(hub);
-	if (reply == NULL)
-		errx(1, "lost connection to the hub during map-get-line");
-
-	if (strncmp(reply, "ok, ", strlen("ok, ")) != 0)
-		errx(1, "invalid reply to map-get-line: %s", reply);
+	while (reply == NULL)
+		remote_process_sync(hub);
 
 	return (reply + strlen("ok, "));
 }
@@ -73,34 +59,39 @@ server_map_get_line(unsigned int y)
 static int
 server_move(const char *dir)
 {
-	char *reply;
+	char *reply = NULL;
+	int error;
 
+	remote_expect(hub, "ok", server_callback, &reply);
+	remote_expect(hub, "sorry", server_callback, &reply);
 	remote_send(hub, "%s\r\n", dir);
-
-	reply = remote_receive(hub);
-	if (reply == NULL)
-		errx(1, "lost connection to the hub during move");
+	while (reply == NULL)
+		remote_process_sync(hub);
 
 	if (strncmp(reply, "ok", strlen("ok")) == 0)
-		return (0);
-	return (1);
+		error = 0;
+	else
+		error = 1;
+
+	free(reply);
+	return (error);
 }
 
 static void
 server_whereami(unsigned int *x, unsigned int *y)
 {
-	char *reply;
+	char *reply = NULL;
 	int assigned;
 
+	remote_expect(hub, "ok", server_callback, &reply);
 	remote_send(hub, "whereami\r\n");
-
-	reply = remote_receive(hub);
-	if (reply == NULL)
-		errx(1, "lost connection to the hub during whereami");
+	while (reply == NULL)
+		remote_process_sync(hub);
 
 	assigned = sscanf(reply, "ok, %d %d", x, y);
 	if (assigned != 2)
 		errx(1, "invalid reply to whereami: %s", reply);
+	free(reply);
 }
 
 static struct window *
@@ -108,7 +99,7 @@ prepare_map_window(struct window *root)
 {
 	struct window *w;
 	unsigned int y, width, height;
-	const char *line;
+	char *line;
 
 	w = window_new(root);
 	server_map_get_size(&width, &height);
@@ -123,6 +114,12 @@ prepare_map_window(struct window *root)
 		if (strlen(line) != width)
 			errx(1, "invalid map line length; is %zd, should be %d", strlen(line), width);
 		window_putstr(w, 0, y, line);
+		/*
+		 * XXX: Leak.
+		 */
+#if 0
+		free(line);
+#endif
 	}
 
 	return (w);
@@ -373,6 +370,7 @@ main(int argc, char **argv)
 			continue;
 		}
 		if (FD_ISSET(hub_fd, &fdset)) {
+			remote_process(hub);
 			continue;
 		}
 		err(1, "select returned unknown fd");

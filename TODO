@@ -1,15 +1,16 @@
 - multiple actors
-- highlight the @
-- bombs
 - chat
 - containers
 - inventory
 - named events
 - named properties
+- bombs
 
 Later:
 
 - handle terminal resizing
+- make it possible to jump-scroll horizontally; horizontal scrolling can be slow
+- highlight the @
 - translucency
 - depth
 - get rid of scrolling
