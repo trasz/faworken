@@ -174,6 +174,20 @@ action_bye(struct remote *r, char *str, char **uptr)
 }
 
 static int
+action_say(struct remote *r, char *str, char **uptr)
+{
+	struct client *c;
+
+	TAILQ_FOREACH(c, &clients, c_next) {
+		/*
+		 * XXX: Validate the string somehow.
+		 */
+		remote_send(c->c_remote, "%s\r\n", str);
+	}
+	return (0);
+}
+
+static int
 action_unknown(struct remote *r, char *str, char **uptr)
 {
 
@@ -205,6 +219,7 @@ client_add(int fd)
 	remote_expect(c->c_remote, "map-get-line", action_map_get_line, (char **)c);
 	remote_expect(c->c_remote, "map-set", action_map_set, (char **)c);
 	remote_expect(c->c_remote, "bye", action_bye, (char **)c);
+	remote_expect(c->c_remote, "say", action_say, (char **)c);
 	remote_expect(c->c_remote, "", action_unknown, (char **)c);
 }
 

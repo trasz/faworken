@@ -15,6 +15,8 @@
 
 struct remote		*hub;
 
+static unsigned int console_height = 10;
+
 static int
 server_callback(struct remote *r, char *str, char **uptr)
 {
@@ -100,6 +102,18 @@ server_whereami(unsigned int *x, unsigned int *y)
 }
 
 static struct window *
+prepare_chat_window(struct window *root)
+{
+	struct window *w;
+
+	w = window_framed_new(root, "console");
+	window_resize(w, window_get_width(root) - 2, console_height - 2); /* -2 due to decorations */
+	window_move(w, 0, window_get_height(root) - console_height);
+
+	return (w);
+}
+
+static struct window *
 prepare_map_window(struct window *root)
 {
 	struct window *w;
@@ -140,7 +154,7 @@ center_map(struct window *character)
 	map = window_get_parent(character);
 	root = window_get_root(character);
 	screen_width = window_get_width(root);
-	screen_height = window_get_height(root);
+	screen_height = window_get_height(root) - console_height;
 
 	x_char = window_get_x(character);
 	y_char = window_get_y(character);
@@ -181,7 +195,7 @@ scroll_map(struct window *character)
 	map = window_get_parent(character);
 	root = window_get_root(character);
 	screen_width = window_get_width(root);
-	screen_height = window_get_height(root);
+	screen_height = window_get_height(root) - console_height;
 
 	x_margin = screen_width / 4;
 	if (x_margin > 10)
@@ -328,7 +342,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	struct window *root, *map_window, *character;
+	struct window *root, *chat, *map_window, *character;
 	int input_fd, hub_fd, hub_port, error, nfds;
 	const char *hub_ip;
 	fd_set fdset;
@@ -354,6 +368,7 @@ main(int argc, char **argv)
 
 	root = window_init();
 
+	chat = prepare_chat_window(root);
 	map_window = prepare_map_window(root);
 	character = prepare_character_window(map_window);
 

@@ -1,5 +1,5 @@
-- multiple actors
 - chat
+- multiple actors
 - containers
 - inventory
 - named events
@@ -12,7 +12,6 @@ Later:
 - make it possible to jump-scroll horizontally; horizontal scrolling can be slow
 - highlight the @
 - translucency
-- depth
 - get rid of scrolling
 - queue of windows_with_pointer, to deal with destroying a window that had the pointer.
 - proper line drawing chars
