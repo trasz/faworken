@@ -19,6 +19,7 @@ struct window {
 	struct window		*w_parent;
 	int			w_x;
 	int			w_y;
+	int			w_z;
 	unsigned int		w_w;
 	unsigned int		w_h;
 	TAILQ_HEAD(, window)	w_windows;
@@ -88,6 +89,7 @@ window_new(struct window *parent)
 	if (parent != NULL) {
 		w->w_parent = parent;
 		TAILQ_INSERT_TAIL(&parent->w_windows, w, w_next);
+		window_set_z(w, 0);
 	}
 
 	return (w);
@@ -173,6 +175,29 @@ window_move_cursor(struct window *w, int x, int y)
 
 	w->w_cursor_x = x;
 	w->w_cursor_y = y;
+}
+
+void
+window_set_z(struct window *w, int z)
+{
+	struct window *w2;
+
+	assert(w->w_parent != NULL);
+
+	w->w_z = z;
+
+	TAILQ_REMOVE(&w->w_parent->w_windows, w, w_next);
+
+	if (TAILQ_EMPTY(&w->w_parent->w_windows)) {
+		TAILQ_INSERT_HEAD(&w->w_parent->w_windows, w, w_next);
+		return;
+	}
+
+	TAILQ_FOREACH(w2, &w->w_parent->w_windows, w_next) {
+		if (w->w_z > w2->w_z)
+			continue;
+		TAILQ_INSERT_BEFORE(w2, w, w_next);
+	}
 }
 
 void	
@@ -338,8 +363,11 @@ window_redraw_internal(struct window *w)
 		}
 	}
 
-	TAILQ_FOREACH(child, &w->w_windows, w_next)
+	TAILQ_FOREACH(child, &w->w_windows, w_next) {
+		if (TAILQ_NEXT(child, w_next) != NULL)
+			assert(child->w_z <= TAILQ_NEXT(child, w_next)->w_z);
 		window_redraw_internal(child);
+	}
 }
 
 void

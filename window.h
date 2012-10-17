@@ -16,6 +16,7 @@ void		window_move(struct window *w, int x, int y);
 void		window_move_by(struct window *w, int x, int y);
 void		window_resize(struct window *w, unsigned int width, unsigned int height);
 void		window_move_cursor(struct window *w, int x, int y);
+void		window_set_z(struct window *w, int z);
 
 void		window_clear(struct window *w);
 void		window_putstr(struct window *w, int x, int y, const char *str);
