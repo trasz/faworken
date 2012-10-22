@@ -304,6 +304,9 @@ map_new(unsigned int w, unsigned int h)
 	struct map *m;
 	unsigned int x, y;
 
+	assert(w > 0);
+	assert(h > 0);
+
 	m = calloc(1, sizeof(*m));
 	if (m == NULL)
 		err(1, "calloc");

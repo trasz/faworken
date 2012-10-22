@@ -155,9 +155,6 @@ action_map_get_line(struct remote *r, char *str, char **uptr)
 static int
 action_bye(struct remote *r, char *str, char **uptr)
 {
-	struct client *c;
-
-	c = (struct client *)uptr;
 
 	remote_send(r, "ok, see you next time\r\n");
 	/*

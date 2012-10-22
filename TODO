@@ -8,6 +8,7 @@
 
 Later:
 
+- refactor remote.c
 - handle terminal resizing
 - make it possible to jump-scroll horizontally; horizontal scrolling can be slow
 - highlight the @
