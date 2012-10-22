@@ -15,7 +15,8 @@
 
 struct remote		*hub;
 
-static unsigned int console_height = 10;
+//static unsigned int console_height = 10;
+static unsigned int console_height = 0;
 
 static int
 server_callback(struct remote *r, char *str, char **uptr)
@@ -101,6 +102,7 @@ server_whereami(unsigned int *x, unsigned int *y)
 	free(reply);
 }
 
+#if 0
 static struct window *
 prepare_chat_window(struct window *root)
 {
@@ -112,6 +114,7 @@ prepare_chat_window(struct window *root)
 
 	return (w);
 }
+#endif
 
 static struct window *
 prepare_map_window(struct window *root)
@@ -342,7 +345,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	struct window *root, *chat, *map_window, *character;
+	struct window *root, *map_window, *character;
 	int input_fd, hub_fd, hub_port, error, nfds;
 	const char *hub_ip;
 	fd_set fdset;
@@ -368,7 +371,9 @@ main(int argc, char **argv)
 
 	root = window_init();
 
+#if 0
 	chat = prepare_chat_window(root);
+#endif
 	map_window = prepare_map_window(root);
 	character = prepare_character_window(map_window);
 
