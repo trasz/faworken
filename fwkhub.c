@@ -17,43 +17,168 @@
 
 #define	FAWORKEN_PORT		1981
 
-struct client {
-	TAILQ_ENTRY(client)	c_next;
-	struct remote		*c_remote;
-	struct actor		*c_actor;
-	int			c_fd;
+struct client_actor {
+	TAILQ_ENTRY(client_actor)	ca_next;
+	unsigned int			ca_id;
+	struct actor			*ca_actor;
+	struct client			*ca_client;
+	char				ca_char;
+	char				*ca_name;
 };
 
-static TAILQ_HEAD(, client)	clients;
-static struct map		*map;
+struct client {
+	TAILQ_ENTRY(client)		c_next;
+	struct remote			*c_remote;
+	int				c_fd;
+};
+
+static TAILQ_HEAD(, client)		clients;
+static TAILQ_HEAD(, client_actor)	actors;
+static struct map			*map;
+
+static unsigned int
+client_actor_allocate_id(void)
+{
+	struct client_actor *ca;
+	unsigned int max_id = 0;
+
+	TAILQ_FOREACH(ca, &actors, ca_next) {
+		if (ca->ca_id > max_id)
+			max_id = ca->ca_id;
+	}
+
+	return (max_id + 1);
+}
+
+static unsigned int
+client_actor_add(struct client *c, char ch, const char *name)
+{
+	struct client_actor *ca;
+
+	ca = calloc(1, sizeof(*ca));
+	if (ca == NULL)
+		err(1, "calloc");
+
+	ca->ca_id = client_actor_allocate_id();
+	ca->ca_actor = map_actor_new(map);
+	ca->ca_client = c;
+	ca->ca_char = ch;
+	ca->ca_name = strdup(name);
+	if (ca->ca_name == NULL)
+		err(1, "strdup");
+
+	TAILQ_INSERT_TAIL(&actors, ca, ca_next);
+
+	return (ca->ca_id);
+}
+
+static void
+client_actor_remove(struct client_actor *ca)
+{
+
+	TAILQ_REMOVE(&actors, ca, ca_next);
+	/*
+	 * XXX: Free ca->ca_actor.
+	 */
+	free(ca->ca_name);
+	free(ca);
+}
+
+static struct client_actor *
+client_actor_find(struct client *c, unsigned int id)
+{
+	struct client_actor *ca;
+
+	TAILQ_FOREACH(ca, &actors, ca_next) {
+		if (ca->ca_client != c)
+			continue;
+		if (ca->ca_id != id)
+			continue;
+		return (ca);
+	}
+
+	return (NULL);
+}
 
 static int
-action_whereami(struct remote *r, char *str, char **uptr)
+action_actor_new(struct remote *r, char *str, char **uptr)
 {
 	struct client *c;
+	unsigned int actor_id;
+	int assigned;
+	char ch;
+	char name[32];
 
 	c = (struct client *)uptr;
 
-	remote_send(r, "ok, %d %d\r\n", map_actor_get_x(c->c_actor), map_actor_get_y(c->c_actor));
+	assigned = sscanf(str, "actor-new '%c' %31s", &ch, name);
+	if (assigned != 2) {
+		remote_send(r, "sorry, invalid usage; should be 'actor-new 'X' name'\r\n");
+		return (0);
+	}
+
+	actor_id = client_actor_add(c, ch, name);
+	remote_send(r, "ok, your ID is %d\r\n", actor_id);
 	return (0);
 }
 
 static int
-action_move(struct remote *r, char *str, char **uptr)
+action_actor_locate(struct remote *r, char *str, char **uptr)
 {
-	int error;
 	struct client *c;
+	struct client_actor *ca;
+	unsigned int actor_id;
+	int assigned;
 
 	c = (struct client *)uptr;
 
-	if (strcmp(str, "north") == 0)
-		error = map_actor_move_by(c->c_actor, 0, -1);
-	else if (strcmp(str, "south") == 0)
-		error = map_actor_move_by(c->c_actor, 0, 1);
-	else if (strcmp(str, "west") == 0)
-		error = map_actor_move_by(c->c_actor, -1, 0);
-	else if (strcmp(str, "east") == 0)
-		error = map_actor_move_by(c->c_actor, 1, 0);
+	assigned = sscanf(str, "actor-locate %d", &actor_id);
+	if (assigned != 1) {
+		remote_send(r, "sorry, invalid usage; should be 'actor-locate actor-id'\r\n");
+		return (0);
+	}
+
+	ca = client_actor_find(c, actor_id);
+	if (ca == NULL) {
+		remote_send(r, "sorry, invalid actor-id\r\n");
+		return (0);
+	}
+
+	remote_send(r, "ok, %d %d\r\n", map_actor_get_x(ca->ca_actor), map_actor_get_y(ca->ca_actor));
+	return (0);
+}
+
+static int
+action_actor_move(struct remote *r, char *str, char **uptr)
+{
+	struct client *c;
+	struct client_actor *ca;
+	unsigned int actor_id;
+	int assigned, error;
+	char direction[10];
+
+	c = (struct client *)uptr;
+
+	assigned = sscanf(str, "actor-move %d %9s", &actor_id, direction);
+	if (assigned != 2) {
+		remote_send(r, "sorry, invalid usage; should be 'actor-move actor-id north|south|east|west'\r\n");
+		return (0);
+	}
+
+	ca = client_actor_find(c, actor_id);
+	if (ca == NULL) {
+		remote_send(r, "sorry, invalid actor-id\r\n");
+		return (0);
+	}
+
+	if (strcmp(direction, "north") == 0)
+		error = map_actor_move_by(ca->ca_actor, 0, -1);
+	else if (strcmp(direction, "south") == 0)
+		error = map_actor_move_by(ca->ca_actor, 0, 1);
+	else if (strcmp(direction, "west") == 0)
+		error = map_actor_move_by(ca->ca_actor, -1, 0);
+	else if (strcmp(direction, "east") == 0)
+		error = map_actor_move_by(ca->ca_actor, 1, 0);
 	else {
 		remote_send(r, "sorry, no idea where's that\r\n");
 		return (0);
@@ -203,14 +328,11 @@ client_add(int fd)
 
 	c->c_fd = fd;
 	c->c_remote = remote_new(fd);
-	c->c_actor = map_actor_new(map);
 	TAILQ_INSERT_TAIL(&clients, c, c_next);
 
-	remote_expect(c->c_remote, "whereami", action_whereami, (char **)c);
-	remote_expect(c->c_remote, "north", action_move, (char **)c);
-	remote_expect(c->c_remote, "south", action_move, (char **)c);
-	remote_expect(c->c_remote, "east", action_move, (char **)c);
-	remote_expect(c->c_remote, "west", action_move, (char **)c);
+	remote_expect(c->c_remote, "actor-new", action_actor_new, (char **)c);
+	remote_expect(c->c_remote, "actor-locate", action_actor_locate, (char **)c);
+	remote_expect(c->c_remote, "actor-move", action_actor_move, (char **)c);
 	remote_expect(c->c_remote, "map-get-size", action_map_get_size, (char **)c);
 	remote_expect(c->c_remote, "map-get", action_map_get, (char **)c);
 	remote_expect(c->c_remote, "map-get-line", action_map_get_line, (char **)c);
@@ -223,6 +345,13 @@ client_add(int fd)
 static void
 client_remove(struct client *c)
 {
+	struct client_actor *ca, *tmpca;
+
+	TAILQ_FOREACH_SAFE(ca, &actors, ca_next, tmpca) {
+		if (ca->ca_client != c)
+			continue;
+		client_actor_remove(ca);
+	}
 
 	TAILQ_REMOVE(&clients, c, c_next);
 	remote_delete(c->c_remote);
@@ -304,6 +433,7 @@ main(int argc, char **argv)
 		usage();
 
 	TAILQ_INIT(&clients);
+	TAILQ_INIT(&actors);
 
 	map = map_new(map_edge_len, map_edge_len);
 

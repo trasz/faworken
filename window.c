@@ -75,7 +75,7 @@ window_fini(struct window *w)
 	window_delete(w);
 }
 
-struct window	*
+struct window *
 window_new(struct window *parent)
 {
 	struct window *w;

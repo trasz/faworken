@@ -14,6 +14,7 @@
 #define	FAWORKEN_PORT	1981
 
 struct remote		*hub;
+unsigned int		actor_id;
 
 //static unsigned int console_height = 10;
 static unsigned int console_height = 0;
@@ -72,7 +73,7 @@ server_move(const char *dir)
 
 	remote_expect(hub, "ok", server_callback, &reply);
 	remote_expect(hub, "sorry", server_callback, &reply);
-	remote_send(hub, "%s\r\n", dir);
+	remote_send(hub, "actor-move %d %s\r\n", actor_id, dir);
 	while (reply == NULL)
 		remote_process_sync(hub);
 
@@ -86,19 +87,40 @@ server_move(const char *dir)
 }
 
 static void
+server_actor_new(void)
+{
+	char *reply = NULL, *login;
+	int assigned;
+
+	login = getlogin();
+	if (login == NULL)
+		errx(1, "getlogin(2) failed");
+
+	remote_expect(hub, "ok", server_callback, &reply);
+	remote_send(hub, "actor-new '@' %s\r\n", login);
+	while (reply == NULL)
+		remote_process_sync(hub);
+
+	assigned = sscanf(reply, "ok, your ID is %d", &actor_id);
+	if (assigned != 1)
+		errx(1, "invalid reply to whereami: %s", reply);
+	free(reply);
+}
+
+static void
 server_whereami(unsigned int *x, unsigned int *y)
 {
 	char *reply = NULL;
 	int assigned;
 
 	remote_expect(hub, "ok", server_callback, &reply);
-	remote_send(hub, "whereami\r\n");
+	remote_send(hub, "actor-locate %d\r\n", actor_id);
 	while (reply == NULL)
 		remote_process_sync(hub);
 
 	assigned = sscanf(reply, "ok, %d %d", x, y);
 	if (assigned != 2)
-		errx(1, "invalid reply to whereami: %s", reply);
+		errx(1, "invalid reply to actor-locate: %s", reply);
 	free(reply);
 }
 
@@ -265,6 +287,7 @@ prepare_character_window(struct window *map_window)
 	struct window *w;
 	unsigned int x, y;
 
+	server_actor_new();
 	server_whereami(&x, &y);
 
 	w = window_new(map_window);
