@@ -6,6 +6,7 @@ struct actor;
 
 struct map	*map_new(unsigned int w, unsigned int h);
 struct actor	*map_actor_new(struct map *m);
+void		map_actor_delete(struct actor *a);
 unsigned int	map_get_width(struct map *m);
 unsigned int	map_get_height(struct map *m);
 char		map_get(struct map *m, unsigned int x, unsigned int y);

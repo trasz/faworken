@@ -77,9 +77,7 @@ client_actor_remove(struct client_actor *ca)
 {
 
 	TAILQ_REMOVE(&actors, ca, ca_next);
-	/*
-	 * XXX: Free ca->ca_actor.
-	 */
+	map_actor_delete(ca->ca_actor);
 	free(ca->ca_name);
 	free(ca);
 }

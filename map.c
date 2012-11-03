@@ -385,6 +385,13 @@ map_actor_new(struct map *m)
 	return (a);
 }
 
+void
+map_actor_delete(struct actor *a)
+{
+
+	free(a);
+}
+
 unsigned int
 map_actor_get_x(struct actor *a)
 {
