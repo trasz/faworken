@@ -98,6 +98,29 @@ client_actor_find(struct client *c, unsigned int id)
 	return (NULL);
 }
 
+static void
+broadcast_actor_at(struct client *c, unsigned int actor_id)
+{
+	struct client *c2;
+	struct client_actor *ca;
+	unsigned int x, y;
+
+	ca = client_actor_find(c, actor_id);
+	assert(ca != NULL);
+
+	/*
+	 * Broadcast the news to the clients.
+	 */
+	x = map_actor_get_x(ca->ca_actor);
+	y = map_actor_get_y(ca->ca_actor);
+	TAILQ_FOREACH(c2, &clients, c_next) {
+		if (c == c2)
+			continue;
+
+		remote_send(c2->c_remote, "actor-at %d %d %d '%c'\r\n", actor_id, x, y, ca->ca_char);
+	}
+}
+
 static int
 action_actor_new(struct remote *r, char *str, char **uptr)
 {
@@ -117,6 +140,9 @@ action_actor_new(struct remote *r, char *str, char **uptr)
 
 	actor_id = client_actor_add(c, ch, name);
 	remote_send(r, "ok, your ID is %d\r\n", actor_id);
+
+	broadcast_actor_at(c, actor_id);
+
 	return (0);
 }
 
@@ -182,9 +208,10 @@ action_actor_move(struct remote *r, char *str, char **uptr)
 		return (0);
 	}
 
-	if (error == 0)
+	if (error == 0) {
 		remote_send(r, "ok\r\n");
-	else
+		broadcast_actor_at(c, actor_id);
+	} else
 		remote_send(r, "sorry, can't go that way\r\n");
 	return (0);
 }

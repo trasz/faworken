@@ -1,5 +1,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <assert.h>
 #include <curses.h>
@@ -14,10 +15,20 @@
 #define	FAWORKEN_PORT	1981
 
 struct remote		*hub;
+struct window		*map_window;
 unsigned int		actor_id;
 
 //static unsigned int console_height = 10;
 static unsigned int console_height = 0;
+
+struct actor {
+	TAILQ_ENTRY(actor)	a_next;
+	unsigned int		a_id;
+	struct window		*a_window;
+	char			a_char;
+};
+
+static TAILQ_HEAD(, actor)	actors;
 
 static int
 server_callback(struct remote *r, char *str, char **uptr)
@@ -137,6 +148,87 @@ prepare_chat_window(struct window *root)
 	return (w);
 }
 #endif
+
+static struct actor *
+actor_new(unsigned int actor_id)
+{
+	struct actor *a;
+
+	a = calloc(1, sizeof(*a));
+	if (a == NULL)
+		err(1, "calloc");
+
+	a->a_id = actor_id;
+	TAILQ_INSERT_TAIL(&actors, a, a_next);
+
+	return (a);
+}
+
+#if 0
+static void
+actor_delete(struct actor *a)
+{
+
+	TAILQ_REMOVE(&actors, a, a_next);
+	free(a);
+}
+#endif
+
+static struct actor *
+actor_find(unsigned int actor_id)
+{
+	struct actor *a;
+
+	TAILQ_FOREACH(a, &actors, a_next) {
+		if (a->a_id != actor_id)
+			continue;
+		return (a);
+	}
+
+	return (NULL);
+}
+
+static void
+actor_at(unsigned int actor_id, unsigned int x, unsigned int y, char ch)
+{
+	struct actor *a;
+
+	a = actor_find(actor_id);
+	if (a == NULL) {
+		a = actor_new(actor_id);
+		a->a_window = window_new(map_window);
+		window_resize(a->a_window, 1, 1);
+	}
+
+	a->a_char = ch;
+	window_move(a->a_window, x, y);
+	window_putstr(a->a_window, 0, 0, "X"); // XXX
+	window_redraw(window_get_root(map_window));
+}
+
+static int
+actor_at_callback(struct remote *r, char *str, char **uptr)
+{
+	unsigned int actor_id, x, y;
+	int assigned;
+	char ch;
+
+	assigned = sscanf(str, "actor-at %d %d %d '%c'", &actor_id, &x, &y, &ch);
+	if (assigned != 4)
+		errx(1, "invalid actor-at: %s", str);
+
+	actor_at(actor_id, x, y, ch);
+
+	return (0);
+}
+
+static void
+expect_stuff(void)
+{
+
+	TAILQ_INIT(&actors);
+	remote_expect(hub, "actor-at", actor_at_callback, NULL);
+}
 
 static struct window *
 prepare_map_window(struct window *root)
@@ -368,7 +460,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	struct window *root, *map_window, *character;
+	struct window *root, *character;
 	int input_fd, hub_fd, hub_port, error, nfds;
 	const char *hub_ip;
 	fd_set fdset;
@@ -391,6 +483,8 @@ main(int argc, char **argv)
 
 	hub_fd = connect_to(hub_ip, hub_port);
 	hub = remote_new(hub_fd);
+
+	expect_stuff();
 
 	root = window_init();
 
