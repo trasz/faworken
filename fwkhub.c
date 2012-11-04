@@ -450,7 +450,6 @@ main(int argc, char **argv)
 {
 	fd_set fdset;
 	int error, i, nfds, client_fd, listening_socket;
-	int map_edge_len = 300;
 	struct client *client;
 	char buf[1];
 
@@ -460,7 +459,7 @@ main(int argc, char **argv)
 	TAILQ_INIT(&clients);
 	TAILQ_INIT(&actors);
 
-	map = map_new(map_edge_len, map_edge_len);
+	map = map_new(200, 60);
 
 	listening_socket = listen_on(FAWORKEN_PORT);
 
